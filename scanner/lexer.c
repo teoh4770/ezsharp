@@ -21,7 +21,7 @@ Token getNextToken(TransitionState state, Scanner *scanner)
       [STATE_LEFT_PAREN] = TOKEN_LEFT_PAREN,
       [STATE_RIGHT_PAREN] = TOKEN_RIGHT_PAREN,
       [STATE_DOT] = TOKEN_DOT,
-      // [STATE_WHITESPACE] = TOKEN_WHITESPACE, // Handle separately if needed
+      [STATE_WHITESPACE] = TOKEN_WHITESPACE, // Handle separately if needed
       [STATE_ADD] = TOKEN_ADD,
       [STATE_MUL] = TOKEN_MUL,
       [STATE_DIV] = TOKEN_DIV,
@@ -37,72 +37,89 @@ Token getNextToken(TransitionState state, Scanner *scanner)
   if (state < 0)
   {
     // handle error here
+    // log error here
+    //
   }
 
   // Todo: parse the lexeme value here
   TokenType tokenType = stateToToken[state];
   int length = scanner->forward - scanner->lexemeBegin;
   char tokenValue[length];
+  char *startCharacter = scanner->lexemeBegin;
 
   // if tokenType is keyword, check if the attribute value match any keyword in our keyword list, if not, return invalid
 
-  return makeToken(tokenType, "tokenValue", scanner->line);
+  return makeToken(tokenType, startCharacter, length, scanner->line);
 }
 //< get-next-token
 
 void lexicalAnalysis(int *inputFd, int *transitionTableFd)
 {
+  // Scan through all the characters
+  // Output a list of token-lexeme pairs file and an error log file
+
   TransitionState state = STATE_START;
   int transitionTable[TT_ROWS][TT_COLS] = {0};
   DoubleBuffer db;
   Scanner scanner;
 
-  initTransitionTable(TT_ROWS, TT_COLS, transitionTable, transitionTableFd);
   initDoubleBuffer(&db, inputFd);
-  initScanner(&scanner, db.buffer1);
   fillBuffer(&db);
+  initScanner(&scanner, db.buffer1);
+  initTransitionTable(TT_ROWS, TT_COLS, transitionTable, transitionTableFd);
 
+  int hasNewLine = 0;
+  int newLineCount = 0;
   int tokenCount = 0;
+  int characterCount = 0;
   Token tokens[100] = {0};
 
   while (1)
   {
-    // we always check for white space at the beginning, and skip them if possible
-    if (
-        peek(&scanner) == '\n' ||
-        peek(&scanner) == ' ' ||
-        peek(&scanner) == '\t')
-    {
-      getNextChar(&db, &scanner);
-    }
+    char character = getNextChar(&db, &scanner);
+    characterCount++;
 
-    char c = getNextChar(&db, &scanner);
-
-    // Handling special cases first, like eof and whitespace
-    if (c == EOF)
+    // Handle EOF
+    if (character == EOF)
     {
-      // Get the last token of the file here
+      // Note: need to get the last token
       Token token = getNextToken(state, &scanner);
       tokens[tokenCount++] = token;
+      printToken(&token);
+
       break;
     }
 
     TransitionState prevState = state;
-    state = transitionTable[state][c];
+    state = transitionTable[state][character];
 
-    // Handle token extraction when transitioning back to STATE_START
+    puts("==============================");
+    printf("Char count: %d\n", characterCount);
+    printf("Current char: %c\n", character);
+    printf("prev state: %d\n", prevState);
+    printf("curr state: %d\n", state);
+
+    // When state not start state, means that we still forwarding
+    // thus increment the newline count
+    if (character == '\n' && state != STATE_START)
+    {
+      newLineCount++;
+      hasNewLine = 1;
+    }
+
+    // Get token
     if (prevState != state && state == STATE_START)
     {
-      // If lexeme is determined, forward is set to the character at its right end
       scanner.forward--;
-      // then after getting the token
       Token token = getNextToken(prevState, &scanner);
       tokens[tokenCount++] = token;
       printToken(&token);
-      // lexemeBegin sets to the character immediately after the lexeme just found
       scanner.lexemeBegin = scanner.forward;
-    }
 
-    // Handle error state
+      if (token.type == TOKEN_WHITESPACE && hasNewLine) {
+        scanner.line = newLineCount + 1; // 1 based
+        hasNewLine = 0;
+      }
+    }
   }
 }
