@@ -4,7 +4,8 @@ void initScanner(Scanner *scanner, char *buffer)
 {
   scanner->lexemeBegin = buffer;
   scanner->forward = buffer;
-  int line = 0;
+  scanner->line = 1;
+  scanner->col = 0;
 }
 
 char peek(Scanner *scanner)
@@ -35,6 +36,6 @@ char getNextChar(DoubleBuffer *db, Scanner *scanner)
       return EOF;
     }
   }
-
+  
   return *scanner->forward++;
 }

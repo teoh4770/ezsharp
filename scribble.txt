@@ -1,0 +1,84 @@
+reference of code: https://github.com/munificent/craftinginterpreters
+why?: I wanna learn, don't wanna do heavy lifting myself only. Besides that, this is more efficient for me imo.
+
+Lexical analysis:
+Scan through the list of characters, and group them together into the smallest words that represents something.
+Each words is called a "lexeme". (Just group of raw texts)
+e.g. var language = "lox";
+lexemes: var, language, =, "lox", ;
+
+From lexemes, we turn them into tokens (Meaningful words), including useful info like:
+1. Token type: Tell us what lexeme it represents, e.g. symbols, literals(identifiers, numbers, string) and keywords(reserved word) 
+2. Literal value: Values of literals, such as "Dom" or "123"
+3. Location information: Which line the token appears on.
+
+Regular Expression:
+We have to look at lexeme to know what kind of lexeme it matches. REGEX comes in.
+Rules that determine 
+
+
+pg140 of dragon book
+Figure 3.5 - Algorithm for advancing forward / Lookahead code with sentinel (eof)
+Note how the first test, which can be part of a multiway branch based on the 
+character pointed to by forward, is the only test we make, except in the case where we actually are at the end of a buffer or the end of the input
+
+buffer1
+buffer2
+lexemeBegin
+forward
+
+switch(*forward++) {
+  case eof:
+    if (forward is at end of first buffer) {
+      reload second buffer;
+      forward = beginning of second buffer;
+    }
+    else if (forward is at end of second buffer) {
+      reload first buffer;
+      forward = beginning of first buffer;
+    }
+    else /* eof within a buffer marks the end of input */
+      terminate lexical analysis
+    break;
+
+  cases for the other characters...
+}
+
+1. *forward return the character
+2. in switch case, we compare the character in different cases
+3. based on different cases, we do something
+
+
+Note about scanner
+
+typedef struct
+{
+  char *start;
+  char *current;
+  int line;
+} Scanner;
+
+Scanner scanner;
+
+//> init-scanner
+void initScanner(const char *source)
+{
+  // start and current = offsets that index into string
+  // start = points to the first character in the lexeme being scanned
+  // current = points at the character currently being considered
+  // line = tracks what source line current is on so that we can produce token that knows their location
+  scanner.start = source;
+  scanner.current = source;
+  scanner.line = 1;
+}
+//< init-scanner
+
+// whole content is being read, number of bytes is being return
+  // printf("bytesRead: %d\n", bytesRead);
+  // printf("content\n%s\n", db->buffer1);
+
+  // It's confirm that this will get us -1
+  // db->buffer1[BUFFER_SIZE-1]);
+
+
+if it is not a valid keyword, then it is just an identifier

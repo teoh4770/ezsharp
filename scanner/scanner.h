@@ -11,6 +11,7 @@ typedef struct
   char *lexemeBegin;
   char *forward;
   int line;
+  int col;
 } Scanner;
 
 void initScanner(Scanner *scanner, char *buffer);

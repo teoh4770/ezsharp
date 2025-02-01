@@ -1,0 +1,2 @@
+Lexical Error: Unexpected character ';' at line 2, column 19!
+Lexical Error: Unexpected character 'a' at line 3, column 14!

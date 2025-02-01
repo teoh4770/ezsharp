@@ -1,0 +1,42 @@
+Minimum implementations:
+  - [] Read source program using Double buffer and output them: It should read source program from a file with “.cp” extension using Double Buffer and write the output to an error log file and a token file.
+
+  - [] lexicalAnalysis and getNextToken functions: My implementation should provide lexical analysis functionality implemented as function (method) - getNextToken (lexicalAnalysis function in your implementation call getNextToken in a loop until input is over.)
+
+  - [] Output tokens or error: The output is a sequence of tokens recognized by your analyser and another file which states the line number and character where error has occured.
+
+  - [X] Implement Panic Mode: Lexical error should not prevent your code from completing analysis. That is, you have to implement Panic Mode (pg138 of textbook)
+
+  - [X] Create transition tables or function to simulate regular expressions: You can either create your transition tables or you can write functions to simulate regular expressions. Your transition tables can be generated manually.
+
+  - [X] Testing: Test your implementation on test cases provided in the assignment entry on -MyLearningSpace but also create your own tests.
+
+Todo:
+  - [X] Define the token type of our language grammar
+  - [x] Define the DFA for identifier, draw the automata diagram for it
+  - [x] Define the DFA for operators, draw the automata diagram for it
+  - [x] Define the DFA for whitespace
+  - [x] Define the DFA for number
+  - [x] Define the DFA for literal
+  - [X] Implement double buffer
+    - [X] buffers are the same size
+    - [X] special character eof marks the end of the file
+    - alternates buffer reloads
+    - two pointers to track progress of lexical analysis: lexicalBegin and forward
+    - test: 
+      - [X] the content is actually save to the buffer
+      - [X] if at the end of the input string, stop the lexical analysis
+      - [X] if able to print out the content from the file, we good
+  - [X] Create transition table (transition function)
+    - [X] Read Transition table data
+    - [X]  Define Transition function (getNextToken)
+    - do we ignore the white space and not make a token for it
+  - [X] refactor the damn code
+  - [X] Handling line count
+  - [X] Define a mapping table for tokens
+  - [X] Create transition table with excel for reference
+  - []  Create a "token-lexeme" pair file
+  - [X] Handling error
+  - 
+
+

@@ -4,7 +4,7 @@
 
 #define BUFFER_SIZE 1024
 
-void initTransitionTable(int rows, int cols, int arr[][TT_COLS], int *fd)
+void initTransitionTable(TransitionState arr[TT_ROWS][TT_COLS], int *fd)
 {
   char buffer[BUFFER_SIZE];
   int row = 0, col = 0;

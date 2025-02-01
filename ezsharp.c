@@ -1,5 +1,4 @@
-// To compile
-// gcc ezsharp.c scanner/*.c -o ezsharp
+// To compile: gcc ezsharp.c scanner/*.c -o ezsharp
 
 //> Entry point for our compiler
 
