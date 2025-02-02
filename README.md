@@ -70,11 +70,191 @@ Here's the EZ-Sharp grammar for reference👇
 
 ## Phase 1: Lexical Analysis
 
+Consider the grammar on page two. Your task in this assignment is to find the lexical
+components from the grammar, and to implement lexical analysis phase of your future compiler.
+
+Minimal implementation requirements:
+
+- [X] Your implementation should provide lexical analysis functionality implemented as function (method) getNextToken (lexicalAnalysis function in your implementation calls getNextToken in a loop until input is over)
+- [X] It should read source program from a file with “.cp” extension using Double Buffer and write the output to an error log file and a token file.
+- [X] The output is a sequence of tokens recognized by your analyser and another file which states the line number and character where error has occurred.
+- [X] Lexical error should not prevent your code from completing analysis. That is, you have to implement Panic Mode.
+- [X] You can either create your transition tables or you can write functions to simulate regular expressions. Your transition tables can be generated manually.
+
 ### Transition Diagram Overview
+
+![Transition Diagram of Lexer](https://github.com/user-attachments/assets/a3d0e33e-9879-45e2-ae38-883ccadcdae1)
 
 ### Transition Table Overview
 
-### Test Cases + Their Outputs
+![Transition Table based on the transition diagram above](https://github.com/user-attachments/assets/8f8bfc46-832b-4261-ab79-4c06ea3d2e21)
+
+> Note 1: First column represents 29 states (non-final and final states), including start state (0).
+>
+> Note 2: First header row represents ascii code from 0 to 127.
+> 
+> Note 3: The value represents the next state after encountering specific character.
+
+### Test Cases + Outputs
+
+I would only show two test cases and their related outputs where Test 0 contains lexical error and Test 1 contains no lexical error.
+
+> Note 1: Lexer should always output a token-lexeme pairs file (token_lexeme_pairs.txt) and an error-log file (lexical_analysis_errors.txt), which used as an input for upcoming parser.
+> 
+> Note 2: token-lexeme pairs show a list of token-lexeme pairs, where first column represent the token type in integer and second column represent the attribute value of the token.
+
+#### Test 0: contains lexical errors
+
+Test0.cp
+
+```
+int x,i;
+x=0;i=123.4;123.4E;
+while(i<10.1Ea) do
+	x = x+i*i; i=i+1
+od;
+print(x);.
+```
+
+token_lexeme_pairs.txt
+
+```
+22 int
+23
+21 x
+5
+21 i
+10
+23
+21 x
+12
+19
+10
+21 i
+12
+20
+10
+10
+23
+22 while
+6
+21 i
+13
+21 a
+7
+23
+22 do
+23
+21 x
+23
+12
+23
+21 x
+0
+21 i
+2
+21 i
+10
+23
+21 i
+12
+21 i
+0
+19
+23
+22 od
+10
+23
+22 print
+6
+21 x
+7
+10
+11
+```
+
+lexical_analysis_errors.txt
+
+```
+Lexical Error: Unexpected character ';' at line 2, column 19!
+Lexical Error: Unexpected character 'a' at line 3, column 14!
+```
+
+
+#### Test 1: no lexical errors
+
+Test1.cp
+
+```
+int x,i;
+x=0;i=1;
+while(i<10) do
+	x = x+i*i; i=i+1
+od;
+print(x);.
+```
+
+token_lexeme_pairs.txt
+
+```
+22 int
+23
+21 x
+5
+21 i
+10
+23
+21 x
+12
+19
+10
+21 i
+12
+19
+10
+23
+22 while
+6
+21 i
+13
+19
+7
+23
+22 do
+23
+21 x
+23
+12
+23
+21 x
+0
+21 i
+2
+21 i
+10
+23
+21 i
+12
+21 i
+0
+19
+23
+22 od
+10
+23
+22 print
+6
+21 x
+7
+10
+11
+```
+
+lexical_analysis_errors.txt
+
+```
+```
+
 
 
 
