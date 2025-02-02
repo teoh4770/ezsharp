@@ -1,5 +1,3 @@
-# CP471 Compiler Course
-
 In this course, I'm gonna learn how to design and implement a compiler for a custom programming language named "EZ-Sharp" using C language. The end goal is to know about how programming languages are intepreted and converted into executable code.
 
 ## Why C over Python?
