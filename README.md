@@ -83,11 +83,11 @@ Minimal implementation requirements:
 
 ### Transition Diagram Overview
 
-![Transition Diagram of Lexer](https://github.com/user-attachments/assets/a3d0e33e-9879-45e2-ae38-883ccadcdae1)
+![Transition Diagram of Lexer](screenshots/transition_diagram.png)
 
 ### Transition Table Overview
 
-![Transition Table based on the transition diagram above](https://github.com/user-attachments/assets/8f8bfc46-832b-4261-ab79-4c06ea3d2e21)
+![Transition Table based on the transition diagram above](screenshots/transition_table.png)
 
 > Note 1: First column represents 29 states (non-final and final states), including start state (0).
 >
