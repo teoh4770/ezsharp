@@ -1,7 +1,14 @@
+// Lexer.c: the main component to handle lexical analysis
+
 #include <fcntl.h>  // For open() flags
 #include <unistd.h> // For write() and close()
 #include "lexer.h"
 
+/**
+ * stateToToken
+ * Used to match the token when related state is found
+ * e.g. if final state === STATE_LT, return TOKEN_LT
+ */
 static const TokenType stateToToken[] = {
     [STATE_LT] = TOKEN_LT,
     [STATE_LE] = TOKEN_LE,
@@ -30,6 +37,11 @@ static const TokenType stateToToken[] = {
     [STATE_RIGHT_SQUARE_PAREN] = TOKEN_RIGHT_SQUARE_PAREN,
 };
 
+/**
+ * keywords
+ * A list of keywords that exists in our grammar
+ * e.g. "or", "and", "not"...
+ */
 static const char *keywords[] = {
     "or", "and", "not", "if", "then", "else", "fi",
     "while", "do", "od", "def", "fed", "return",
@@ -38,7 +50,12 @@ static const char *keywords[] = {
 static const int keywordsCount = sizeof(keywords) / sizeof(keywords[0]);
 
 //> custom-string-functions
-//> string-length
+
+/**
+ * stringLength
+ * Find the size of a string, similar to strlen() in c
+ * e.g. stringLength("abc") = 3
+ */
 size_t stringLength(const char *str)
 {
   size_t length = 0;
@@ -48,9 +65,12 @@ size_t stringLength(const char *str)
   }
   return length;
 }
-//< string-length
 
-//> string-copy
+/**
+ * stringCopy
+ * Copy the string, similar to strcpy() in c
+ * e.g. stringCopy(&word, "or")
+ */
 void stringCopy(char *dest, const char *src)
 {
   while (*src)
@@ -62,12 +82,12 @@ void stringCopy(char *dest, const char *src)
 
   *dest = '\0';
 }
-//< string-copy
 
-//> string-compare
-// This custom string comparison mimics the behavior of strcmp().
-// It returns 0 if strings are identical, or the ASCII difference
-// of the first differing character if not.
+/**
+ * stringCompare
+ * Compare both string, return 0 if string is identical
+ * e.g. stringCompare("or", "or");
+ */
 int stringCompare(const char *str1, const char *str2)
 {
   while (*str1 && (*str1 == *str2))
@@ -79,12 +99,11 @@ int stringCompare(const char *str1, const char *str2)
   // Return the ascii value of the first differing character (If any)
   return *str1 - *str2;
 }
-//< string-compare
+
 //< custom-string-functions
 
 //> buffer-file-functions
 
-//> append-to-buffer
 void appendToBuffer(char *buffer, size_t *bufferIndex, const char *message)
 {
   size_t messageLength = stringLength(message);
@@ -100,9 +119,7 @@ void appendToBuffer(char *buffer, size_t *bufferIndex, const char *message)
   stringCopy(buffer + *bufferIndex, message);
   *bufferIndex += messageLength;
 }
-//< append-to-buffer
 
-//> generate-file
 int generateFile(const char *fileName, const char *content)
 {
   // O_WRONLY -> Writing only
@@ -116,6 +133,8 @@ int generateFile(const char *fileName, const char *content)
     perror("Failed to open file for writing");
     return -1;
   }
+
+  printf("%s\n", content);
 
   size_t contentLength = stringLength(content);
   if (contentLength == 0)
@@ -137,19 +156,15 @@ int generateFile(const char *fileName, const char *content)
 
   return 0;
 }
-//< generate-file
 
-//> flush-buffer-to-file
 void flushBufferToFile(const char *fileName, char *buffer, size_t *bufferIndex)
 {
   generateFile(fileName, buffer);
   *bufferIndex = 0; // Reset buffer
 }
-//< flush-buffer-to-file
 
 //< buffer-file-functions
 
-//> initialize-lexer
 void initializeLexer(Lexer *lexer, int *inputFd, int *transitionTableFd)
 {
   // Initialize lexer state and buffer-related variables
@@ -169,26 +184,25 @@ void initializeLexer(Lexer *lexer, int *inputFd, int *transitionTableFd)
   // Initialize the transition table with file data
   initTransitionTable(lexer->transitionTable, transitionTableFd);
 }
-//< initialize-lexer
 
-//> handle-error
-void handleError(Lexer *lexer, char invalidChar)
+void handleError(Lexer *lexer, char character)
 {
-  // Log the error with position details
-  printf("Lexical Error: Unexpected character '%c' at line %d, column %d!\n",
-         invalidChar, lexer->scanner.line, lexer->scanner.col);
-
-  // Move pointer to the invalid character
-  lexer->scanner.col--;     // Undo the column increment
-  lexer->scanner.forward--; // Undo the last forward movement
-  lexer->scanner.lexemeBegin = lexer->scanner.forward;
-
   // Reset the state to start lexing from the invalid character
   lexer->currentState = STATE_START;
-}
-//< handle-error
 
-//> get-next-token
+  // Move pointer to the invalid character to start from there
+  TransitionState state = lexer->transitionTable[lexer->currentState][character];
+
+  // If initial character is valid, then undo the col and forward pointer
+  if (state != STATE_ERROR)
+  {
+    lexer->scanner.col--;     // Undo the column increment
+    lexer->scanner.forward--; // Undo the last forward movement
+  }
+
+  lexer->scanner.lexemeBegin = lexer->scanner.forward;
+}
+
 Token getNextToken(TransitionState state, Scanner *scanner)
 {
   // Map the state to the corresponding token type
@@ -226,9 +240,7 @@ Token getNextToken(TransitionState state, Scanner *scanner)
 
   return makeToken(tokenType, startCharacter, tokenLength, scanner->line);
 }
-//< get-next-token
 
-//> process-token
 void processToken(Lexer *lexer, TransitionState state)
 {
   // Undo column and forward before processing the token
@@ -237,6 +249,7 @@ void processToken(Lexer *lexer, TransitionState state)
 
   // Get the next token and add it to the token list
   Token token = getNextToken(state, &lexer->scanner);
+
   lexer->tokens[lexer->tokenCount++] = token;
   printToken(&token);
 
@@ -251,17 +264,18 @@ void processToken(Lexer *lexer, TransitionState state)
     lexer->hasNewLine = false;                     // Reset newline flag
   }
 }
-//< process-token
 
-//> lexical-analysis
 void lexicalAnalysis(int *inputFd, int *transitionTableFd)
 {
-  // Output: tokens and errors log
-  char errorBuffer[BUFFER_SIZE]; // Holds error messages before writing to error file
-  size_t errorBufferIndex = 0;   // Track the size of error buffer
+  //> Output: tokens and errors log
+  char errorBuffer[BUFFER_SIZE + 1]; // Holds error messages before writing to error file
+  errorBuffer[BUFFER_SIZE] = '\0';   // Null character
+  size_t errorBufferIndex = 0;       // Track the size of error buffer
 
-  char tokenFileBuffer[BUFFER_SIZE]; // Holds token info before writing to token file
+  char tokenFileBuffer[BUFFER_SIZE + 1]; // Holds token info before writing to token file
+  tokenFileBuffer[BUFFER_SIZE] = '\0';   // Null character
   size_t tokenFileBufferIndex = 0;
+  //< Output
 
   Lexer lexer;
   initializeLexer(&lexer, inputFd, transitionTableFd);
@@ -276,6 +290,13 @@ void lexicalAnalysis(int *inputFd, int *transitionTableFd)
     {
       // Process the last token before finishing
       Token token = getNextToken(lexer.currentState, &lexer.scanner);
+
+      // Token validation, possibly 0
+      if (token.type <= 0)
+      {
+        break;
+      }
+
       lexer.tokens[lexer.tokenCount++] = token;
       printToken(&token);
       break;
@@ -319,10 +340,6 @@ void lexicalAnalysis(int *inputFd, int *transitionTableFd)
     if (isTokenFound)
     {
       processToken(&lexer, prevState);
-
-      // char tokenMessage[BUFFER_SIZE];
-      // sprintf(tokenMessage, "%d\n", token.type);
-      // appendToBuffer(tokenFileBuffer, &tokenFileBufferIndex, tokenMessage);
     }
   }
 
@@ -346,8 +363,9 @@ void lexicalAnalysis(int *inputFd, int *transitionTableFd)
       tokenValue[token.length] = '\0';
 
       sprintf(tokenMessage, "%d %s\n", token.type, tokenValue);
-    } 
-    else {
+    }
+    else
+    {
       sprintf(tokenMessage, "%d\n", token.type);
     }
 
@@ -358,4 +376,3 @@ void lexicalAnalysis(int *inputFd, int *transitionTableFd)
   flushBufferToFile("lexical_analysis_errors.txt", errorBuffer, &errorBufferIndex);
   flushBufferToFile("token_lexeme_pairs.txt", tokenFileBuffer, &tokenFileBufferIndex);
 }
-//< lexical-analysis
