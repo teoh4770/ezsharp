@@ -82,3 +82,33 @@ void initScanner(const char *source)
 
 
 if it is not a valid keyword, then it is just an identifier
+
+Parser Panic Mode
+
+// As soon as parse detects an error, it enters panic mode.
+// Knows that at least one token does not make sense given its current state in the middle of grammar production
+
+// Before going back to parsing, it needs to get its "state" and the sequence of forthcoming "tokens" aligned such that next token does match the rule being parsed. This process is called "synchronization".
+
+// To do this, we pick some rule in the grammar that mark the synchronization point.
+// The parser fixes its parsing state by jumping out of any nested productions until it gets back to the rule.
+// Then it synchronizes the token stream by discarding tokens until it reaches one that can appear at the point in the rule.
+
+// Additional real syntax error hiding in the discard tokens aren't report
+// But means that any mistaken cascaded errors that are side effect of the initial error aren't reported either.
+
+- With this method, on finding an error, the parser discards input symbols one at a time until one of a designated set of synchronizing tokens is found. 
+
+- The sync tokens are usually delimiters, such as semicolon or '}', whose role in the source program is clear and unambiguous. 
+
+- We must select the sync tokens appropriate for the source language.
+
+- Use the follow symbols as synchronizing tokens.
+
+Rules:
+
+- if parser looks up entry and finds it blank, then the input symbol a is skipped
+
+- if the entry is synchronize token, then nonterminal on top of the stack is popped to resume parsing
+
+- if token on top of the stack does not match the input symbol, then we pop the token from the stack

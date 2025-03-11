@@ -39,4 +39,18 @@ Todo:
   - [X] Handling error
   - 
 
+in 28 Feb
+Todo for parser:
+  Pre-parsing
+  - [X] Update the lexer function to return the token list from the static token list
+  - [X] Ignore whitespace tokens when parsing 
+  - [X] Abstract lexeme comparison (Fix current string comparison issues to improve token matching)
+  - [X] Ensure the $ token is properly appended at the end of the token list
+
+  Error handling
+  - [] implement panic mode
+
+  Output
+  - [] Collect all identifiers (token ids) and store them in a symbol table. At the end of parsing, print the symbol table in a readable format
+  - [] An error log file with diagnostics
 
