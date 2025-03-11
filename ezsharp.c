@@ -1,4 +1,4 @@
-// To compile: gcc ezsharp.c scanner/*.c -o ezsharp
+// To compile: gcc ezsharp.c lexer/*.c parser/*.c -o ezsharp
 
 //> Entry point for our compiler
 
@@ -7,7 +7,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "scanner/lexer.h"
+#include "lexer/lexer.h"
+#include "parser/parser.h"
 
 //> report-error: line, where, message
 void report(int line, const char *where, const char *message)
@@ -26,7 +27,7 @@ static void error(int line, const char *message)
 int main(int argc, const char *argv[])
 {
   // Open the file with extension ".cp"
-  int fd = open("tests/Test0.cp", O_RDONLY);
+  int fd = open("tests/CorrectSyntax.cp", O_RDONLY);
   if (fd == -1)
   {
     printf("Error Number % d\n", errno);
@@ -41,8 +42,9 @@ int main(int argc, const char *argv[])
     _exit(1);
   }
 
-  // Start lexical analysis
-  lexicalAnalysis(&fd, &transitionTableFd);
+  int tokenCount = 0;
+  Token *tokens = lexicalAnalysis(&fd, &transitionTableFd);
+  Parse(tokens, getTokenCount());
 
   if (close(fd) < 0 || close(transitionTableFd) < 0)
   {
