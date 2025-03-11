@@ -253,8 +253,119 @@ lexical_analysis_errors.txt
 ```
 ```
 
+## Phase 2: Syntax Analysis
 
+### LL(1) Form Grammar
 
+```txt
+PROG → FNS DECLS STMTS .
+FNS → FN; FNSC 
+FNS → ε
+FNSC → FN; FNSC 
+FNSC → ε
+FN → def TYPE FNAME ( PARAMS ) DECLS STMTS fed  
+PARAMS → TYPE VAR PARAMSC 
+PARAMS → ε
+PARAMSC → , TYPE VAR PARAMSC  
+PARAMSC → ε
+FNAME → ID
+DECLS → DECL; DECLSC 
+DECLS → ε
+DECLSC → DECL; DECLSC 
+DECLSC → ε
+DECL → TYPE VARS
+TYPE → int 
+TYPE → double
+VARS → VAR VARSC
+VARSC → , VARS 
+VARSC → ε
+STMTS → STMT STMTSC
+STMTSC → ; STMTS 
+STMTSC → ε
+STMT → VAR = EXPR
+STMT → if BEXPR then STMTS STMTC 
+STMT →  while BEXPR do STMTS od 
+STMT → print EXPR
+STMT → return EXPR 
+STMT →  ε
+STMTC → fi 
+STMTC → else STMTS fi
+EXPR → TERM EXPRC
+EXPRC → + TERM EXPRC 
+EXPRC → - TERM EXPRC 
+EXPRC → ε
+TERM → FACTOR TERMC
+TERMC → * FACTOR TERMC 
+TERMC → / FACTOR TERMC 
+TERMC → % FACTOR TERMC 
+TERMC → ε
+FACTOR→ ID FACTORC 
+FACTOR→ NUMBER 
+FACTOR→ ( EXPR )
+FACTORC → VARC 
+FACTORC → ( EXPRS )
+EXPRS → EXPR EXPRSC 
+EXPRS → ε
+EXPRSC → , EXPRS 
+EXPRSC → ε
+BEXPR → BTERM BEXPRC
+BEXPRC → or BTERM BEXPRC 
+BEXPRC → ε
+BTERM → BFACTOR BTERMC
+BTERMC → and BFACTOR BTERMC  
+BTERMC → ε
+BFACTOR → not BFACTOR BFACTORC 
+BFACTOR → ( EXPR COMP EXPR ) BFACTORC
+BFACTORC → BTERMC BEXPRC BFACTORC 
+BFACTORC → ε
+COMP → < 
+COMP → > 
+COMP → == 
+COMP → <= 
+COMP → >= 
+COMP → <>
+VAR → ID VARC
+VARC → [ EXPR ] 
+VARC → ε
+```
+
+### First & Follow Sets 
+
+|  | First | Follow |
+| --- | --- | --- |
+| PROG | { ".", ";", def, int, double, if, while, print, return, ID } | { $ } |
+| FNS | { def, $\epsilon$ } | { ".", ";", int, double, if, while, print, return, ID } |
+| FNSC | { def, $\epsilon$ ) | { ".", ";", int, double, if, while, print, return, ID } |
+| FN | { def } | { ";" } |
+| PARAMS | { int, double, $\epsilon$  ) | {”)” }  |
+| PARAMSC | { ",",  $\epsilon$  } | { “)” } |
+| FNAME | { ID  } | { “(”  } |
+| DECLS | { int, double, $\epsilon$  } | { ".", ";", fed, if, while, print, return, ID } |
+| DECLSC | { int, double, $\epsilon$ } | { ".", ";", fed, if, while, print, return, ID } |
+| DECL | { int, double } | { ";" } |
+| TYPE | { int, double } | { ID } |
+| VARS | { ID } | { ";" } |
+| VARSC | { ",",  $\epsilon$ } | { ";" } |
+| STMTS | { ";", if, while, print, return, ID, $\epsilon$ } | { ".", fed, od, fi, else } |
+| STMTSC | { ";", $\epsilon$ } | { ".", fed, od, fi, else } |
+| STMT | { if, while, print, return, ID, $\epsilon$ } | { ".", ";", fed, od, fi, else } |
+| STMTC | { fi, else } | { ".", ";", fed, od, fi, else } |
+| EXPR | { “(”,  ID, NUMBER } | { ".", ";", “)”, fed, ",", od, fi, else,  <, >, ==, ≤, ≥, <>, “]”  } |
+| EXPRC | { “+”, “-”,  $\epsilon$ } | { ".", ";", “)”, fed, ",", od, fi, else,  <, >, ==, ≤, ≥, <>, “]”  } |
+| TERM | { “(”, ID, NUMBER } | { ".", ";", ), fed, ",", od, fi, else, +, -,  <, >, ==, ≤, ≥, <>, “]” } |
+| TERMC | { “*”, “/”, “%”, $\epsilon$  } | { ".", ";", ), fed, ",", od, fi, else, +, -,  <, >, ==, ≤, ≥, <>, “]” } |
+| FACTOR | { “(”, ID, NUMBER } | { ".", ";", ), fed, ",", od, fi, else, +, -, *, /, %, <, >, ==, ≤, ≥, <>, “]” } |
+| EXPRS | { “(”, ID, NUMBER, $\epsilon$ } | { “)” } |
+| EXPRSC | { "," , $\epsilon$  } | { “)” } |
+| BEXPR | { “(”, not } | { then, do } |
+| BEXPRC | { or, $\epsilon$  } | { then, do, or, and } |
+| BTERM | { “(”, not } | { then, do, or, and } |
+| BTERMC | { and,  $\epsilon$  } | { then, do, or, and } |
+| BFACTOR | { “(”, not } | { then, do, or, and } |
+| BFACTORC | { or, and,  $\epsilon$  } | { then, do, or, and } |
+| COMP | { “<”, “>”, “==”, “≤”, “≥”, “<>” } | { “(”, ID, NUMBER } |
+| VAR | { ID } | { “;”,  “)”,  “,”, “=”} |
+| VARC | { “[”,  $\epsilon$  } | { ".", ";", “)”, fed, ",", =, od, fi, else, +, -, *, /, %, <, >, ==, ≤, ≥, <>, “]” } |
 
 Reference: 
 - https://github.com/juancwu/hachi-bitto 's documentation
