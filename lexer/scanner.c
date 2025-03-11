@@ -37,5 +37,8 @@ char getNextChar(DoubleBuffer *db, Scanner *scanner)
     }
   }
   
+  // Update column number
+  scanner->col++;
+  
   return *scanner->forward++;
 }

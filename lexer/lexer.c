@@ -1,4 +1,4 @@
-// Lexer.c: the main component to handle lexical analysis
+// lexer.c: the main component to handle lexical analysis
 
 #include <fcntl.h>  // For open() flags
 #include <unistd.h> // For write() and close()
@@ -88,16 +88,15 @@ void stringCopy(char *dest, const char *src)
  * Compare both string, return 0 if string is identical
  * e.g. stringCompare("or", "or");
  */
-int stringCompare(const char *str1, const char *str2)
+int stringCompare(const char *str1, const char *str2, int length)
 {
-  while (*str1 && (*str1 == *str2))
+  for (int i = 0; i < length; i++)
   {
-    str1++;
-    str2++;
+    if (str1[i] != str2[i])
+      return str1[i] - str2[i]; // Return difference in ASCII values
   }
 
-  // Return the ascii value of the first differing character (If any)
-  return *str1 - *str2;
+  return 0; // Return 0 if all characters match
 }
 
 //< custom-string-functions
@@ -124,10 +123,10 @@ int generateFile(const char *fileName, const char *content)
 {
   // O_WRONLY -> Writing only
   // O_CREAT  -> Create file if it does not exist
-  // O_TRUNC  -> If the file already exists, it will clear its contents (truncate it to zero length).
+  // O_APPEND -> Append data at the end of the file
   // S_IRUSR  -> Set the read permission for user
   // S_IWUSR  -> Set the write permission for user
-  int file = open(fileName, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  int file = open(fileName, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
   if (file == -1)
   {
     perror("Failed to open file for writing");
@@ -169,7 +168,6 @@ void initializeLexer(Lexer *lexer, int *inputFd, int *transitionTableFd)
 {
   // Initialize lexer state and buffer-related variables
   lexer->currentState = STATE_START;
-  lexer->tokenCount = 0;
   lexer->newLineCount = 0;
   lexer->characterCount = 0;
   lexer->hasNewLine = false;
@@ -219,7 +217,7 @@ Token getNextToken(TransitionState state, Scanner *scanner)
   }
   value[tokenLength] = '\0';
 
-  // If the token is of type keyword, check if the lexeme matches any predefined keywords
+  // If the token is a keyword, check if the lexeme matches any predefined keywords
   if (tokenType == TOKEN_KEYWORD)
   {
     bool isKeyword = false;
@@ -227,8 +225,7 @@ Token getNextToken(TransitionState state, Scanner *scanner)
     // Check if the lexeme matches any keyword
     for (int i = 0; i < keywordsCount; i++)
     {
-      // if value inside keywords
-      if (stringCompare(value, keywords[i]) == 0)
+      if (stringCompare(value, keywords[i], stringLength(keywords[i])) == 0)
       {
         isKeyword = true;
       }
@@ -250,23 +247,22 @@ void processToken(Lexer *lexer, TransitionState state)
   // Get the next token and add it to the token list
   Token token = getNextToken(state, &lexer->scanner);
 
-  lexer->tokens[lexer->tokenCount++] = token;
-  printToken(&token);
-
-  // Prepare for the next token by updating lexemeBegin
-  lexer->scanner.lexemeBegin = lexer->scanner.forward;
-
-  // Reset line and column if a newline was encountered
-  if (lexer->hasNewLine)
+  // Ignore whitespace
+  if (token.type == TOKEN_WHITESPACE)
   {
-    lexer->scanner.line = lexer->newLineCount + 1; // 1-based index for lines
-    lexer->scanner.col = 0;                        // Reset column to 0 after newline
-    lexer->hasNewLine = false;                     // Reset newline flag
+    return;
   }
+
+  tokens[tokenCount] = token;
+  tokenCount++;
 }
 
-void lexicalAnalysis(int *inputFd, int *transitionTableFd)
+Token *lexicalAnalysis(int *inputFd, int *transitionTableFd)
 {
+  // Remove the created files first
+  remove("lexical_analysis_errors.txt");
+  remove("token_lexeme_pairs.txt");
+
   //> Output: tokens and errors log
   char errorBuffer[BUFFER_SIZE + 1]; // Holds error messages before writing to error file
   errorBuffer[BUFFER_SIZE] = '\0';   // Null character
@@ -283,7 +279,6 @@ void lexicalAnalysis(int *inputFd, int *transitionTableFd)
   while (1)
   {
     char character = getNextChar(&lexer.db, &lexer.scanner);
-    lexer.scanner.col++;
 
     // Handle end of file (EOF)
     if (character == EOF)
@@ -297,8 +292,8 @@ void lexicalAnalysis(int *inputFd, int *transitionTableFd)
         break;
       }
 
-      lexer.tokens[lexer.tokenCount++] = token;
-      printToken(&token);
+      tokens[tokenCount] = token;
+      tokenCount++;
       break;
     }
 
@@ -340,15 +335,26 @@ void lexicalAnalysis(int *inputFd, int *transitionTableFd)
     if (isTokenFound)
     {
       processToken(&lexer, prevState);
+
+      // Prepare for the next token by updating lexemeBegin
+      lexer.scanner.lexemeBegin = lexer.scanner.forward;
+
+      // Reset line and column if a newline was encountered
+      if (lexer.hasNewLine)
+      {
+        lexer.scanner.line = lexer.newLineCount + 1; // 1-based index for lines
+        lexer.scanner.col = 0;                       // Reset column to 0 after newline
+        lexer.hasNewLine = false;                    // Reset newline flag
+      }
     }
   }
 
   // Handle Token file
   char tokenMessage[BUFFER_SIZE];
 
-  for (int i = 0; i < lexer.tokenCount; i++)
+  for (int i = 0; i < tokenCount; i++)
   {
-    Token token = lexer.tokens[i];
+    Token token = tokens[i];
 
     // If token required attribute value
     if (token.type == TOKEN_KEYWORD || token.type == TOKEN_ID)
@@ -375,4 +381,11 @@ void lexicalAnalysis(int *inputFd, int *transitionTableFd)
   // Flush buffer contents to the file at the end of lexical analysis
   flushBufferToFile("lexical_analysis_errors.txt", errorBuffer, &errorBufferIndex);
   flushBufferToFile("token_lexeme_pairs.txt", tokenFileBuffer, &tokenFileBufferIndex);
+
+  return tokens;
+}
+
+int getTokenCount()
+{
+  return tokenCount;
 }

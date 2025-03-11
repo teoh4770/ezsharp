@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "token.h"
 
 //> make-token
@@ -36,3 +37,40 @@ void printToken(Token *token)
   }
 }
 //< print-token
+
+void printTokenLexeme(Token *token)
+{
+  char *startCharacter = token->start;
+  for (int i = 0; i < token->length; i++)
+  {
+    if (i == token->length - 1)
+    {
+      printf("%c", *startCharacter);
+    }
+    else
+    {
+      printf("%c", *startCharacter);
+    }
+
+    startCharacter++;
+  }
+}
+
+char *getTokenLexeme(Token *token)
+{
+  char *lexeme = (char *)malloc(token->length + 1);
+  if (!lexeme)
+  {
+    printf("Memory allocation failed\n");
+    return NULL;
+  }
+
+  for (int i = 0; i < token->length; i++)
+  {
+    lexeme[i] = token->start[i];
+  }
+
+  lexeme[token->length] = '\0';
+
+  return lexeme;
+}
