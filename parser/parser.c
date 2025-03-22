@@ -137,7 +137,6 @@ void Parse(Token *tokens, int tokenCount)
   remove("symbol_table.txt");
 
   // Initialization
-  // Add null terminator to buffer
   syntaxErrorBuffer[BUFFER_SIZE] = '\0';
   symbolTableBuffer[BUFFER_SIZE] = '\0';
   // Add extra $ token to indicate end of input tokens
@@ -1149,8 +1148,20 @@ void parseVar()
   else
   {
     syntaxError("Expected an identifier");
-    syncVar();
-    return;
+
+    // if match last set, return to parent
+    if (
+        look_ahead->type == TOKEN_SEMICOLON ||
+        look_ahead->type == TOKEN_RIGHT_PAREN ||
+        look_ahead->type == TOKEN_COMMA ||
+        look_ahead->type == TOKEN_ASSIGN_OP)
+    {
+      return;
+    }
+
+    // otherwise, move to next token and redo the current parse function
+    advanceToken();
+    parseVar();
   }
 }
 
