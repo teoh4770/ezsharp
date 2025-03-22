@@ -28,21 +28,21 @@ bool match(Token token);
 void Parse(Token *tokens, int tokenCount);
 
 // Synchronization functions
-void syncProg();
-void syncFns();
-void syncFn();
-void syncParamsc();
-void syncFname();
-void syncDecls();
-void syncDecl();
-void syncType();
-void syncStmt();
-void syncStmtc();
-void syncFactor();
-void syncBfactor();
-void syncComp();
-void syncVar();
-void syncVarc();
+// void syncProg();
+// void syncFns();
+// void syncFn();
+// void syncParamsc();
+// void syncFname();
+// void syncDecls();
+// void syncDecl();
+// void syncType();
+// void syncStmt();
+// void syncStmtc();
+// void syncFactor();
+// void syncBfactor();
+// void syncComp();
+// void syncVar();
+// void syncVarc();
 
 // Non-terminal parsing functions
 void parseProg();

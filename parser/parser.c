@@ -163,13 +163,14 @@ void Parse(Token *tokens, int tokenCount)
   }
 }
 
-void syncProg()
-{
-  while (!isAtEnd())
-  {
-    advanceToken();
-  }
-}
+// !remove
+// void syncProg()
+// {
+//   while (!isAtEnd())
+//   {
+//     advanceToken();
+//   }
+// }
 
 void parseProg()
 {
@@ -183,31 +184,37 @@ void parseProg()
   if (!match(makeToken(TOKEN_DOT, ".", 1, -1)))
   {
     syntaxError("Expected '.' to indicate end of the program");
-    syncProg();
+
+    while (!isAtEnd())
+    {
+      advanceToken();
+    }
+
     return;
   }
 }
 
-void syncFns()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_DOT ||
-        look_ahead->type == TOKEN_SEMICOLON ||
-        look_ahead->type == TOKEN_ID ||
-        look_ahead->type == TOKEN_INT ||
-        look_ahead->type == TOKEN_DOUBLE ||
-        look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0 ||
-        look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0 ||
-        look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0 ||
-        look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0)
-    {
-      return;
-    }
+// !remove
+// void syncFns()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (look_ahead->type == TOKEN_DOT ||
+//         look_ahead->type == TOKEN_SEMICOLON ||
+//         look_ahead->type == TOKEN_ID ||
+//         look_ahead->type == TOKEN_INT ||
+//         look_ahead->type == TOKEN_DOUBLE ||
+//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0 ||
+//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0 ||
+//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0 ||
+//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0)
+//     {
+//       return;
+//     }
 
-    advanceToken();
-  }
-}
+//     advanceToken();
+//   }
+// }
 
 void parseFns()
 {
@@ -224,8 +231,22 @@ void parseFns()
     if (!match(makeToken(TOKEN_SEMICOLON, ";", 1, -1)))
     {
       syntaxError("Expected ';' after function definition");
-      syncFns();
-      return;
+
+      if (look_ahead->type == TOKEN_DOT ||
+          look_ahead->type == TOKEN_SEMICOLON ||
+          look_ahead->type == TOKEN_ID ||
+          look_ahead->type == TOKEN_INT ||
+          look_ahead->type == TOKEN_DOUBLE ||
+          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0 ||
+          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0 ||
+          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0 ||
+          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0)
+      {
+        return;
+      }
+
+      advanceToken();
+      parseFns();
     }
 
     parseFnsc();
@@ -244,18 +265,19 @@ void parseFnsc()
   parseFns();
 }
 
-void syncFn()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_SEMICOLON)
-    {
-      return;
-    }
+// !remove
+// void syncFn()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (look_ahead->type == TOKEN_SEMICOLON)
+//     {
+//       return;
+//     }
 
-    advanceToken();
-  }
-}
+//     advanceToken();
+//   }
+// }
 
 void parseFn()
 {
@@ -265,8 +287,14 @@ void parseFn()
   if (!match(makeToken(TOKEN_KEYWORD, "def", 3, -1)))
   {
     syntaxError("Expected 'def' at the start of function definition");
-    syncFn();
-    return;
+
+    if (look_ahead->type == TOKEN_SEMICOLON)
+    {
+      return;
+    }
+
+    advanceToken();
+    parseFn();
   }
 
   parseType();
@@ -275,8 +303,14 @@ void parseFn()
   if (!match(makeToken(TOKEN_LEFT_PAREN, "(", 1, -1)))
   {
     syntaxError("Expected '(' after function name");
-    syncFn();
-    return;
+
+    if (look_ahead->type == TOKEN_SEMICOLON)
+    {
+      return;
+    }
+
+    advanceToken();
+    parseFn();
   }
 
   parseParams();
@@ -284,8 +318,14 @@ void parseFn()
   if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
   {
     syntaxError("Expected ')' after function parameters");
-    syncFn();
-    return;
+
+    if (look_ahead->type == TOKEN_SEMICOLON)
+    {
+      return;
+    }
+
+    advanceToken();
+    parseFn();
   }
 
   parseDecls();
@@ -294,8 +334,14 @@ void parseFn()
   if (!match(makeToken(TOKEN_KEYWORD, "fed", 3, -1)))
   {
     syntaxError("Expected 'fed' at the end of function definition");
-    syncFn();
-    return;
+
+    if (look_ahead->type == TOKEN_SEMICOLON)
+    {
+      return;
+    }
+
+    advanceToken();
+    parseFn();
   }
 }
 
@@ -321,18 +367,19 @@ void parseParams()
   }
 }
 
-void syncParamsc()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_RIGHT_PAREN)
-    {
-      return;
-    }
+// !remove
+// void syncParamsc()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (look_ahead->type == TOKEN_RIGHT_PAREN)
+//     {
+//       return;
+//     }
 
-    advanceToken();
-  }
-}
+//     advanceToken();
+//   }
+// }
 
 void parseParamsc()
 {
@@ -348,8 +395,14 @@ void parseParamsc()
            stringCompare(look_ahead->start, "double", 6) == 0)))
     {
       syntaxError("Expected a type ('int' or 'double') after ',' in parameter list");
-      syncParamsc();
-      return;
+
+      if (look_ahead->type == TOKEN_RIGHT_PAREN)
+      {
+        return;
+      }
+
+      advanceToken();
+      parseParamsc();
     }
 
     parseType();
@@ -362,18 +415,19 @@ void parseParamsc()
   }
 }
 
-void syncFname()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_LEFT_PAREN)
-    {
-      return;
-    }
+// !remove
+// void syncFname()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (look_ahead->type == TOKEN_LEFT_PAREN)
+//     {
+//       return;
+//     }
 
-    advanceToken();
-  }
-}
+//     advanceToken();
+//   }
+// }
 
 void parseFname()
 {
@@ -387,30 +441,37 @@ void parseFname()
   else
   {
     syntaxError("Expected function name (identifier)");
-    syncFname();
-    return;
-  }
-}
 
-void syncDecls()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_DOT ||
-        look_ahead->type == TOKEN_SEMICOLON ||
-        look_ahead->type == TOKEN_ID ||
-        look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "fed", 3) == 0 ||
-        look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0 ||
-        look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0 ||
-        look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0 ||
-        look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0)
+    if (look_ahead->type == TOKEN_LEFT_PAREN)
     {
       return;
     }
 
     advanceToken();
+    parseFname();
   }
 }
+
+// !remove
+// void syncDecls()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (look_ahead->type == TOKEN_DOT ||
+//         look_ahead->type == TOKEN_SEMICOLON ||
+//         look_ahead->type == TOKEN_ID ||
+//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "fed", 3) == 0 ||
+//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0 ||
+//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0 ||
+//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0 ||
+//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0)
+//     {
+//       return;
+//     }
+
+//     advanceToken();
+//   }
+// }
 
 void parseDecls()
 {
@@ -428,8 +489,21 @@ void parseDecls()
     if (!match(makeToken(TOKEN_SEMICOLON, ";", 1, -1)))
     {
       syntaxError("Expected semicolon");
-      syncDecls();
-      return;
+
+      if (look_ahead->type == TOKEN_DOT ||
+          look_ahead->type == TOKEN_SEMICOLON ||
+          look_ahead->type == TOKEN_ID ||
+          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "fed", 3) == 0 ||
+          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0 ||
+          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0 ||
+          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0 ||
+          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0)
+      {
+        return;
+      }
+
+      advanceToken();
+      parseDecls();
     }
 
     parseDeclsc();
@@ -448,18 +522,18 @@ void parseDeclsc()
   parseDecls();
 }
 
-void syncDecl()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_SEMICOLON)
-    {
-      return;
-    }
+// void syncDecl()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (look_ahead->type == TOKEN_SEMICOLON)
+//     {
+//       return;
+//     }
 
-    advanceToken();
-  }
-}
+//     advanceToken();
+//   }
+// }
 
 void parseDecl()
 {
@@ -477,23 +551,30 @@ void parseDecl()
   else
   {
     syntaxError("Expected 'int' or 'double' for declaration");
-    syncDecl();
-    return;
-  }
-}
 
-void syncType()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_ID)
+    if (look_ahead->type == TOKEN_SEMICOLON)
     {
       return;
     }
 
     advanceToken();
+    parseDecl();
   }
 }
+
+// !remove
+// void syncType()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (look_ahead->type == TOKEN_ID)
+//     {
+//       return;
+//     }
+
+//     advanceToken();
+//   }
+// }
 
 void parseType()
 {
@@ -515,8 +596,14 @@ void parseType()
   else
   {
     syntaxError("Expected 'int' or 'double' as type");
-    syncType();
-    return;
+
+    if (look_ahead->type == TOKEN_ID)
+    {
+      return;
+    }
+
+    advanceToken();
+    parseType();
   }
 }
 
@@ -572,23 +659,24 @@ void parseStmtsc()
   }
 }
 
-void syncStmt()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_DOT ||
-        look_ahead->type == TOKEN_SEMICOLON ||
-        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                              stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "else", 4) == 0))
-    {
-      return;
-    }
+// !remove
+// void syncStmt()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (look_ahead->type == TOKEN_DOT ||
+//         look_ahead->type == TOKEN_SEMICOLON ||
+//         look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+//                                               stringCompare(look_ahead->start, "od", 2) == 0 ||
+//                                               stringCompare(look_ahead->start, "fi", 2) == 0 ||
+//                                               stringCompare(look_ahead->start, "else", 4) == 0))
+//     {
+//       return;
+//     }
 
-    advanceToken();
-  }
-}
+//     advanceToken();
+//   }
+// }
 
 void parseStmt()
 {
@@ -612,8 +700,19 @@ void parseStmt()
     if (!match(makeToken(TOKEN_ASSIGN_OP, "=", 1, -1)))
     {
       syntaxError("Expected '=' for assignment");
-      syncStmt();
-      return;
+
+      if (look_ahead->type == TOKEN_DOT ||
+          look_ahead->type == TOKEN_SEMICOLON ||
+          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "else", 4) == 0))
+      {
+        return;
+      }
+
+      advanceToken();
+      parseStmt();
     }
 
     parseExpr();
@@ -626,8 +725,19 @@ void parseStmt()
     if (!match(makeToken(TOKEN_KEYWORD, "then", 4, -1)))
     {
       syntaxError("Missing 'then' after 'if' condition");
-      syncStmt();
-      return;
+
+      if (look_ahead->type == TOKEN_DOT ||
+          look_ahead->type == TOKEN_SEMICOLON ||
+          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "else", 4) == 0))
+      {
+        return;
+      }
+
+      advanceToken();
+      parseStmt();
     }
 
     parseStmts();
@@ -641,8 +751,19 @@ void parseStmt()
     if (!match(makeToken(TOKEN_KEYWORD, "do", 2, -1)))
     {
       syntaxError("Missing 'do' after 'while' condition");
-      syncStmt();
-      return;
+
+      if (look_ahead->type == TOKEN_DOT ||
+          look_ahead->type == TOKEN_SEMICOLON ||
+          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "else", 4) == 0))
+      {
+        return;
+      }
+
+      advanceToken();
+      parseStmt();
     }
 
     parseStmts();
@@ -650,8 +771,19 @@ void parseStmt()
     if (!match(makeToken(TOKEN_KEYWORD, "od", 2, -1)))
     {
       syntaxError("Expected 'od' at the end of while loop");
-      syncStmt();
-      return;
+
+      if (look_ahead->type == TOKEN_DOT ||
+          look_ahead->type == TOKEN_SEMICOLON ||
+          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "else", 4) == 0))
+      {
+        return;
+      }
+
+      advanceToken();
+      parseStmt();
     }
   }
   else if (isKeywordPrint)
@@ -670,23 +802,24 @@ void parseStmt()
   }
 }
 
-void syncStmtc()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_DOT ||
-        look_ahead->type == TOKEN_SEMICOLON ||
-        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                              stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "else", 4) == 0))
-    {
-      return;
-    }
+// !remove
+// void syncStmtc()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (look_ahead->type == TOKEN_DOT ||
+//         look_ahead->type == TOKEN_SEMICOLON ||
+//         look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+//                                               stringCompare(look_ahead->start, "od", 2) == 0 ||
+//                                               stringCompare(look_ahead->start, "fi", 2) == 0 ||
+//                                               stringCompare(look_ahead->start, "else", 4) == 0))
+//     {
+//       return;
+//     }
 
-    advanceToken();
-  }
-}
+//     advanceToken();
+//   }
+// }
 
 void parseStmtc()
 {
@@ -709,15 +842,37 @@ void parseStmtc()
     if (!match(makeToken(TOKEN_KEYWORD, "fi", 2, -1)))
     {
       syntaxError("Statement does not end with 'fi'");
-      syncStmtc();
-      return;
+
+      if (look_ahead->type == TOKEN_DOT ||
+          look_ahead->type == TOKEN_SEMICOLON ||
+          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "else", 4) == 0))
+      {
+        return;
+      }
+
+      advanceToken();
+      parseStmtc();
     }
   }
   else
   {
     syntaxError("Expected 'fi' or 'else' for the end of statement");
-    syncStmtc();
-    return;
+
+    if (look_ahead->type == TOKEN_DOT ||
+        look_ahead->type == TOKEN_SEMICOLON ||
+        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+                                              stringCompare(look_ahead->start, "od", 2) == 0 ||
+                                              stringCompare(look_ahead->start, "fi", 2) == 0 ||
+                                              stringCompare(look_ahead->start, "else", 4) == 0))
+    {
+      return;
+    }
+
+    advanceToken();
+    parseStmtc();
   }
 }
 
@@ -797,37 +952,38 @@ void parseTermc()
   }
 }
 
-void syncFactor()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_DOT ||
-        look_ahead->type == TOKEN_SEMICOLON ||
-        look_ahead->type == TOKEN_RIGHT_PAREN ||
-        look_ahead->type == TOKEN_COMMA ||
-        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                              stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "else", 4) == 0) ||
-        look_ahead->type == TOKEN_ADD ||
-        look_ahead->type == TOKEN_SUB ||
-        look_ahead->type == TOKEN_MUL ||
-        look_ahead->type == TOKEN_DIV ||
-        look_ahead->type == TOKEN_MOD ||
-        look_ahead->type == TOKEN_LT ||
-        look_ahead->type == TOKEN_GT ||
-        look_ahead->type == TOKEN_EQ ||
-        look_ahead->type == TOKEN_LE ||
-        look_ahead->type == TOKEN_GE ||
-        look_ahead->type == TOKEN_NE ||
-        look_ahead->type == TOKEN_RIGHT_SQUARE_PAREN)
-    {
-      return;
-    }
+// !remove
+// void syncFactor()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (look_ahead->type == TOKEN_DOT ||
+//         look_ahead->type == TOKEN_SEMICOLON ||
+//         look_ahead->type == TOKEN_RIGHT_PAREN ||
+//         look_ahead->type == TOKEN_COMMA ||
+//         look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+//                                               stringCompare(look_ahead->start, "od", 2) == 0 ||
+//                                               stringCompare(look_ahead->start, "fi", 2) == 0 ||
+//                                               stringCompare(look_ahead->start, "else", 4) == 0) ||
+//         look_ahead->type == TOKEN_ADD ||
+//         look_ahead->type == TOKEN_SUB ||
+//         look_ahead->type == TOKEN_MUL ||
+//         look_ahead->type == TOKEN_DIV ||
+//         look_ahead->type == TOKEN_MOD ||
+//         look_ahead->type == TOKEN_LT ||
+//         look_ahead->type == TOKEN_GT ||
+//         look_ahead->type == TOKEN_EQ ||
+//         look_ahead->type == TOKEN_LE ||
+//         look_ahead->type == TOKEN_GE ||
+//         look_ahead->type == TOKEN_NE ||
+//         look_ahead->type == TOKEN_RIGHT_SQUARE_PAREN)
+//     {
+//       return;
+//     }
 
-    advanceToken();
-  }
-}
+//     advanceToken();
+//   }
+// }
 
 void parseFactor()
 {
@@ -857,15 +1013,67 @@ void parseFactor()
     if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
     {
       syntaxError("Expected ')'");
-      syncFactor();
-      return;
+
+      if (
+          look_ahead->type == TOKEN_DOT ||
+          look_ahead->type == TOKEN_SEMICOLON ||
+          look_ahead->type == TOKEN_RIGHT_PAREN ||
+          look_ahead->type == TOKEN_COMMA ||
+          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "else", 4) == 0) ||
+          look_ahead->type == TOKEN_ADD ||
+          look_ahead->type == TOKEN_SUB ||
+          look_ahead->type == TOKEN_MUL ||
+          look_ahead->type == TOKEN_DIV ||
+          look_ahead->type == TOKEN_MOD ||
+          look_ahead->type == TOKEN_LT ||
+          look_ahead->type == TOKEN_GT ||
+          look_ahead->type == TOKEN_EQ ||
+          look_ahead->type == TOKEN_LE ||
+          look_ahead->type == TOKEN_GE ||
+          look_ahead->type == TOKEN_NE ||
+          look_ahead->type == TOKEN_RIGHT_SQUARE_PAREN)
+      {
+        return;
+      }
+
+      advanceToken();
+      parseFactor();
     }
   }
   else
   {
     syntaxError("Expected an identifier, number, or '(' to start an expression");
-    syncFactor();
-    return;
+
+    if (
+        look_ahead->type == TOKEN_DOT ||
+        look_ahead->type == TOKEN_SEMICOLON ||
+        look_ahead->type == TOKEN_RIGHT_PAREN ||
+        look_ahead->type == TOKEN_COMMA ||
+        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+                                              stringCompare(look_ahead->start, "od", 2) == 0 ||
+                                              stringCompare(look_ahead->start, "fi", 2) == 0 ||
+                                              stringCompare(look_ahead->start, "else", 4) == 0) ||
+        look_ahead->type == TOKEN_ADD ||
+        look_ahead->type == TOKEN_SUB ||
+        look_ahead->type == TOKEN_MUL ||
+        look_ahead->type == TOKEN_DIV ||
+        look_ahead->type == TOKEN_MOD ||
+        look_ahead->type == TOKEN_LT ||
+        look_ahead->type == TOKEN_GT ||
+        look_ahead->type == TOKEN_EQ ||
+        look_ahead->type == TOKEN_LE ||
+        look_ahead->type == TOKEN_GE ||
+        look_ahead->type == TOKEN_NE ||
+        look_ahead->type == TOKEN_RIGHT_SQUARE_PAREN)
+    {
+      return;
+    }
+
+    advanceToken();
+    parseFactor();
   }
 }
 
@@ -883,8 +1091,34 @@ void parseFactorc()
     if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
     {
       syntaxError("Expected closing parenthesis ')'");
-      syncFactor();
-      return;
+
+      if (
+          look_ahead->type == TOKEN_DOT ||
+          look_ahead->type == TOKEN_SEMICOLON ||
+          look_ahead->type == TOKEN_RIGHT_PAREN ||
+          look_ahead->type == TOKEN_COMMA ||
+          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
+                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "else", 4) == 0) ||
+          look_ahead->type == TOKEN_ADD ||
+          look_ahead->type == TOKEN_SUB ||
+          look_ahead->type == TOKEN_MUL ||
+          look_ahead->type == TOKEN_DIV ||
+          look_ahead->type == TOKEN_MOD ||
+          look_ahead->type == TOKEN_LT ||
+          look_ahead->type == TOKEN_GT ||
+          look_ahead->type == TOKEN_EQ ||
+          look_ahead->type == TOKEN_LE ||
+          look_ahead->type == TOKEN_GE ||
+          look_ahead->type == TOKEN_NE ||
+          look_ahead->type == TOKEN_RIGHT_SQUARE_PAREN)
+      {
+        return;
+      }
+
+      advanceToken();
+      parseFactorc();
     }
   }
   else
@@ -989,22 +1223,23 @@ void parseBtermc()
   }
 }
 
-void syncBfactor()
-{
-  while (!isAtEnd())
-  {
-    if (
-        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "then", 4) == 0 ||
-                                              stringCompare(look_ahead->start, "do", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "or", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "and", 3) == 0))
-    {
-      return;
-    }
+// !remove
+// void syncBfactor()
+// {
+//   while (!isAtEnd())
+//   {
+//     if (
+//         look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "then", 4) == 0 ||
+//                                               stringCompare(look_ahead->start, "do", 2) == 0 ||
+//                                               stringCompare(look_ahead->start, "or", 2) == 0 ||
+//                                               stringCompare(look_ahead->start, "and", 3) == 0))
+//     {
+//       return;
+//     }
 
-    advanceToken();
-  }
-}
+//     advanceToken();
+//   }
+// }
 
 void parseBfactor()
 {
@@ -1031,8 +1266,18 @@ void parseBfactor()
     if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
     {
       syntaxError("Expected closing parenthesis ')'");
-      syncBfactor();
-      return;
+
+      if (
+          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "then", 4) == 0 ||
+                                                stringCompare(look_ahead->start, "do", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "or", 2) == 0 ||
+                                                stringCompare(look_ahead->start, "and", 3) == 0))
+      {
+        return;
+      }
+
+      advanceToken();
+      parseBfactor();
     }
 
     parseBfactorc();
@@ -1040,8 +1285,18 @@ void parseBfactor()
   else
   {
     syntaxError("Expected 'not' or '(' for boolean factor");
-    syncBfactor();
-    return;
+
+    if (
+        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "then", 4) == 0 ||
+                                              stringCompare(look_ahead->start, "do", 2) == 0 ||
+                                              stringCompare(look_ahead->start, "or", 2) == 0 ||
+                                              stringCompare(look_ahead->start, "and", 3) == 0))
+    {
+      return;
+    }
+
+    advanceToken();
+    parseBfactor();
   }
 }
 
@@ -1062,22 +1317,6 @@ void parseBfactorc()
   else
   {
     return;
-  }
-}
-
-void syncComp()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_LEFT_PAREN ||
-        look_ahead->type == TOKEN_ID ||
-        look_ahead->type == TOKEN_INT ||
-        look_ahead->type == TOKEN_DOUBLE)
-    {
-      return;
-    }
-
-    advanceToken();
   }
 }
 
@@ -1113,25 +1352,17 @@ void parseComp()
     break;
   default:
     syntaxError("Expected a comparison operator");
-    syncComp();
-    return;
-  }
-}
 
-void syncVar()
-{
-  while (!isAtEnd())
-  {
-    if (
-        look_ahead->type == TOKEN_SEMICOLON ||
-        look_ahead->type == TOKEN_RIGHT_PAREN ||
-        look_ahead->type == TOKEN_COMMA ||
-        look_ahead->type == TOKEN_ASSIGN_OP)
+    if (look_ahead->type == TOKEN_LEFT_PAREN ||
+        look_ahead->type == TOKEN_ID ||
+        look_ahead->type == TOKEN_INT ||
+        look_ahead->type == TOKEN_DOUBLE)
     {
       return;
     }
 
     advanceToken();
+    parseComp();
   }
 }
 
@@ -1162,39 +1393,6 @@ void parseVar()
     // otherwise, move to next token and redo the current parse function
     advanceToken();
     parseVar();
-  }
-}
-
-void syncVarc()
-{
-  while (!isAtEnd())
-  {
-    if (look_ahead->type == TOKEN_DOT ||
-        look_ahead->type == TOKEN_SEMICOLON ||
-        look_ahead->type == TOKEN_RIGHT_PAREN ||
-        look_ahead->type == TOKEN_COMMA ||
-        look_ahead->type == TOKEN_ASSIGN_OP ||
-        look_ahead->type == TOKEN_ADD ||
-        look_ahead->type == TOKEN_SUB ||
-        look_ahead->type == TOKEN_MUL ||
-        look_ahead->type == TOKEN_DIV ||
-        look_ahead->type == TOKEN_MOD ||
-        look_ahead->type == TOKEN_LT ||
-        look_ahead->type == TOKEN_GT ||
-        look_ahead->type == TOKEN_EQ ||
-        look_ahead->type == TOKEN_LE ||
-        look_ahead->type == TOKEN_GE ||
-        look_ahead->type == TOKEN_NE ||
-        look_ahead->type == TOKEN_RIGHT_SQUARE_PAREN ||
-        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                              stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "else", 4) == 0))
-    {
-      return;
-    }
-
-    advanceToken();
   }
 }
 
