@@ -27,22 +27,20 @@ bool isAtEnd();
 bool match(Token token);
 void Parse(Token *tokens, int tokenCount);
 
-// Synchronization functions
-// void syncProg();
-// void syncFns();
-// void syncFn();
-// void syncParamsc();
-// void syncFname();
-// void syncDecls();
-// void syncDecl();
-// void syncType();
-// void syncStmt();
-// void syncStmtc();
-// void syncFactor();
-// void syncBfactor();
-// void syncComp();
-// void syncVar();
-// void syncVarc();
+// Follow Set functions
+void syncProg();
+bool isInFollowSetForFns();
+bool isInFollowSetForFn();
+bool isInFollowSetForParamsc();
+bool isInFollowSetForFname();
+bool isInFollowSetForDecls();
+bool isInFollowSetForDecl();
+bool isInFollowSetForType();
+bool isInFollowSetForStmt();
+bool isInFollowSetForFactor();
+bool isInFollowSetForBfactor();
+bool isInFollowSetForComp();
+bool isInFollowSetForVar();
 
 // Non-terminal parsing functions
 void parseProg();

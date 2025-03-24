@@ -18,6 +18,7 @@ Output
 //> Helper Functions
 void addEndToken(Token *tokens, int *tokenCount)
 {
+  // need to update the token
   tokens[*tokenCount] = makeToken(TOKEN_DOLLAR, "$", 1, -1);
   (*tokenCount)++;
 }
@@ -79,8 +80,8 @@ bool matchToken(Token current, Token target)
   puts("============");
   printToken(&target);
 
-  // Compare token type and token length
-  if (current.type != target.type || current.length != target.length)
+  // Compare token type
+  if (current.type != target.type)
   {
     puts("-> Token Not Match\n");
     return false;
@@ -100,6 +101,27 @@ bool matchToken(Token current, Token target)
 bool isAtEnd()
 {
   return look_ahead->type == TOKEN_DOLLAR;
+}
+
+bool isKeyword(const char *keyword, int length)
+{
+  return look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, keyword, length) == 0;
+}
+
+// Handle parse error
+// Accept both a follow set function
+// And a callback for re-parsing
+void handleParseError(const char *message, bool (*isInFollowSet)(), void (*parseFunc)())
+{
+  syntaxError(message);
+
+  if (isAtEnd() || isInFollowSet())
+  {
+    return; 
+  }
+
+  advanceToken();
+  parseFunc();
 }
 
 //< Helper functions
@@ -122,7 +144,6 @@ bool match(Token token)
     return true;
   }
 
-  // printf("Error: Unexpected token %s\n", look_ahead->start); // Error message
   return false;
 }
 
@@ -163,14 +184,13 @@ void Parse(Token *tokens, int tokenCount)
   }
 }
 
-// !remove
-// void syncProg()
-// {
-//   while (!isAtEnd())
-//   {
-//     advanceToken();
-//   }
-// }
+void syncProg()
+{
+  while (!isAtEnd())
+  {
+    advanceToken();
+  }
+}
 
 void parseProg()
 {
@@ -184,37 +204,30 @@ void parseProg()
   if (!match(makeToken(TOKEN_DOT, ".", 1, -1)))
   {
     syntaxError("Expected '.' to indicate end of the program");
-
-    while (!isAtEnd())
-    {
-      advanceToken();
-    }
-
+    syncProg();
     return;
   }
 }
 
-// !remove
-// void syncFns()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (look_ahead->type == TOKEN_DOT ||
-//         look_ahead->type == TOKEN_SEMICOLON ||
-//         look_ahead->type == TOKEN_ID ||
-//         look_ahead->type == TOKEN_INT ||
-//         look_ahead->type == TOKEN_DOUBLE ||
-//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0 ||
-//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0 ||
-//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0 ||
-//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0)
-//     {
-//       return;
-//     }
-
-//     advanceToken();
-//   }
-// }
+bool isInFollowSetForFns()
+{
+  switch (look_ahead->type)
+  {
+  case TOKEN_DOT:
+  case TOKEN_SEMICOLON:
+  case TOKEN_ID:
+  case TOKEN_INT:
+  case TOKEN_DOUBLE:
+    return true;
+  case TOKEN_KEYWORD:
+    return isKeyword("if", 2) ||
+           isKeyword("while", 5) ||
+           isKeyword("print", 5) ||
+           isKeyword("return", 6);
+  default:
+    return false;
+  }
+}
 
 void parseFns()
 {
@@ -222,31 +235,13 @@ void parseFns()
   // FNS → ε
   preParse("fns");
 
-  bool isKeywordDef = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "def", 3) == 0;
-
-  if (isKeywordDef)
+  if (isKeyword("def", 3))
   {
     parseFn();
 
     if (!match(makeToken(TOKEN_SEMICOLON, ";", 1, -1)))
     {
-      syntaxError("Expected ';' after function definition");
-
-      if (look_ahead->type == TOKEN_DOT ||
-          look_ahead->type == TOKEN_SEMICOLON ||
-          look_ahead->type == TOKEN_ID ||
-          look_ahead->type == TOKEN_INT ||
-          look_ahead->type == TOKEN_DOUBLE ||
-          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0 ||
-          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0 ||
-          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0 ||
-          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0)
-      {
-        return;
-      }
-
-      advanceToken();
-      parseFns();
+      handleParseError("Expected ';' after function definition", isInFollowSetForFns, parseFns);
     }
 
     parseFnsc();
@@ -265,19 +260,10 @@ void parseFnsc()
   parseFns();
 }
 
-// !remove
-// void syncFn()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (look_ahead->type == TOKEN_SEMICOLON)
-//     {
-//       return;
-//     }
-
-//     advanceToken();
-//   }
-// }
+bool isInFollowSetForFn()
+{
+  return look_ahead->type == TOKEN_SEMICOLON;
+}
 
 void parseFn()
 {
@@ -286,15 +272,7 @@ void parseFn()
 
   if (!match(makeToken(TOKEN_KEYWORD, "def", 3, -1)))
   {
-    syntaxError("Expected 'def' at the start of function definition");
-
-    if (look_ahead->type == TOKEN_SEMICOLON)
-    {
-      return;
-    }
-
-    advanceToken();
-    parseFn();
+    handleParseError("Expected 'def' at the start of function definition", isInFollowSetForFn, parseFn);
   }
 
   parseType();
@@ -302,30 +280,14 @@ void parseFn()
 
   if (!match(makeToken(TOKEN_LEFT_PAREN, "(", 1, -1)))
   {
-    syntaxError("Expected '(' after function name");
-
-    if (look_ahead->type == TOKEN_SEMICOLON)
-    {
-      return;
-    }
-
-    advanceToken();
-    parseFn();
+    handleParseError("Expected '(' after function name", isInFollowSetForFn, parseFn);
   }
 
   parseParams();
 
   if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
   {
-    syntaxError("Expected ')' after function parameters");
-
-    if (look_ahead->type == TOKEN_SEMICOLON)
-    {
-      return;
-    }
-
-    advanceToken();
-    parseFn();
+    handleParseError("Expected ')' after function parameters", isInFollowSetForFn, parseFn);
   }
 
   parseDecls();
@@ -333,15 +295,7 @@ void parseFn()
 
   if (!match(makeToken(TOKEN_KEYWORD, "fed", 3, -1)))
   {
-    syntaxError("Expected 'fed' at the end of function definition");
-
-    if (look_ahead->type == TOKEN_SEMICOLON)
-    {
-      return;
-    }
-
-    advanceToken();
-    parseFn();
+    handleParseError("Expected 'fed' at the end of function definition", isInFollowSetForFn, parseFn);
   }
 }
 
@@ -351,15 +305,11 @@ void parseParams()
   // PARAMS → ε
   preParse("params");
 
-  if (look_ahead->type == TOKEN_KEYWORD)
+  if (isKeyword("int", 3) || isKeyword("double", 6))
   {
-    if (stringCompare(look_ahead->start, "int", 3) == 0 ||
-        stringCompare(look_ahead->start, "double", 6) == 0)
-    {
-      parseType();
-      parseVar();
-      parseParamsc();
-    }
+    parseType();
+    parseVar();
+    parseParamsc();
   }
   else
   {
@@ -367,19 +317,10 @@ void parseParams()
   }
 }
 
-// !remove
-// void syncParamsc()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (look_ahead->type == TOKEN_RIGHT_PAREN)
-//     {
-//       return;
-//     }
-
-//     advanceToken();
-//   }
-// }
+bool isInFollowSetForParamsc()
+{
+  return look_ahead->type == TOKEN_RIGHT_PAREN;
+}
 
 void parseParamsc()
 {
@@ -390,19 +331,9 @@ void parseParamsc()
   {
     match(makeToken(TOKEN_COMMA, ",", 1, -1));
 
-    if (!(look_ahead->type == TOKEN_KEYWORD &&
-          (stringCompare(look_ahead->start, "int", 3) == 0 ||
-           stringCompare(look_ahead->start, "double", 6) == 0)))
+    if (!(isKeyword("int", 3) || isKeyword("double", 6)))
     {
-      syntaxError("Expected a type ('int' or 'double') after ',' in parameter list");
-
-      if (look_ahead->type == TOKEN_RIGHT_PAREN)
-      {
-        return;
-      }
-
-      advanceToken();
-      parseParamsc();
+      handleParseError("Expected a type ('int' or 'double') after ',' in parameter list", isInFollowSetForParamsc, parseParamsc);
     }
 
     parseType();
@@ -415,19 +346,10 @@ void parseParamsc()
   }
 }
 
-// !remove
-// void syncFname()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (look_ahead->type == TOKEN_LEFT_PAREN)
-//     {
-//       return;
-//     }
-
-//     advanceToken();
-//   }
-// }
+bool isInFollowSetForFname()
+{
+  return look_ahead->type == TOKEN_LEFT_PAREN;
+}
 
 void parseFname()
 {
@@ -440,38 +362,28 @@ void parseFname()
   }
   else
   {
-    syntaxError("Expected function name (identifier)");
-
-    if (look_ahead->type == TOKEN_LEFT_PAREN)
-    {
-      return;
-    }
-
-    advanceToken();
-    parseFname();
+    handleParseError("Expected function name (identifier)", isInFollowSetForFname, parseFname);
   }
 }
 
-// !remove
-// void syncDecls()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (look_ahead->type == TOKEN_DOT ||
-//         look_ahead->type == TOKEN_SEMICOLON ||
-//         look_ahead->type == TOKEN_ID ||
-//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "fed", 3) == 0 ||
-//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0 ||
-//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0 ||
-//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0 ||
-//         look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0)
-//     {
-//       return;
-//     }
-
-//     advanceToken();
-//   }
-// }
+bool isInFollowSetForDecls()
+{
+  switch (look_ahead->type)
+  {
+  case TOKEN_DOT:
+  case TOKEN_SEMICOLON:
+  case TOKEN_ID:
+    return true;
+  case TOKEN_KEYWORD:
+    return isKeyword("fed", 3) ||
+           isKeyword("if", 2) ||
+           isKeyword("while", 5) ||
+           isKeyword("print", 5) ||
+           isKeyword("return", 6);
+  default:
+    return false;
+  }
+}
 
 void parseDecls()
 {
@@ -479,31 +391,13 @@ void parseDecls()
   // DECLS → ε
   preParse("decls");
 
-  bool isKeywordInt = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "int", 3) == 0;
-  bool isKeywordDouble = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "double", 6) == 0;
-
-  if (isKeywordInt || isKeywordDouble)
+  if (isKeyword("int", 3) || isKeyword("double", 6))
   {
     parseDecl();
 
     if (!match(makeToken(TOKEN_SEMICOLON, ";", 1, -1)))
     {
-      syntaxError("Expected semicolon");
-
-      if (look_ahead->type == TOKEN_DOT ||
-          look_ahead->type == TOKEN_SEMICOLON ||
-          look_ahead->type == TOKEN_ID ||
-          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "fed", 3) == 0 ||
-          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0 ||
-          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0 ||
-          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0 ||
-          look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0)
-      {
-        return;
-      }
-
-      advanceToken();
-      parseDecls();
+      handleParseError("Expected semicolon", isInFollowSetForDecls, parseDecls);
     }
 
     parseDeclsc();
@@ -522,59 +416,31 @@ void parseDeclsc()
   parseDecls();
 }
 
-// void syncDecl()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (look_ahead->type == TOKEN_SEMICOLON)
-//     {
-//       return;
-//     }
-
-//     advanceToken();
-//   }
-// }
+bool isInFollowSetForDecl()
+{
+  return look_ahead->type == TOKEN_SEMICOLON;
+}
 
 void parseDecl()
 {
   // DECL → TYPE VARS
   preParse("decl");
 
-  bool isKeywordInt = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "int", 3) == 0;
-  bool isKeywordDouble = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "double", 6) == 0;
-
-  if (isKeywordInt || isKeywordDouble)
+  if (isKeyword("int", 3) || isKeyword("double", 6))
   {
     parseType();
     parseVars();
   }
   else
   {
-    syntaxError("Expected 'int' or 'double' for declaration");
-
-    if (look_ahead->type == TOKEN_SEMICOLON)
-    {
-      return;
-    }
-
-    advanceToken();
-    parseDecl();
+    handleParseError("Expected 'int' or 'double' for declaration", isInFollowSetForDecl, parseDecl);
   }
 }
 
-// !remove
-// void syncType()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (look_ahead->type == TOKEN_ID)
-//     {
-//       return;
-//     }
-
-//     advanceToken();
-//   }
-// }
+bool isInFollowSetForType()
+{
+  return look_ahead->type == TOKEN_ID;
+}
 
 void parseType()
 {
@@ -582,28 +448,17 @@ void parseType()
   // TYPE → double
   preParse("type");
 
-  bool isKeywordInt = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "int", 3) == 0;
-  bool isKeywordDouble = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "double", 6) == 0;
-
-  if (isKeywordInt)
+  if (isKeyword("int", 3))
   {
     match(makeToken(TOKEN_KEYWORD, "int", 3, -1));
   }
-  else if (isKeywordDouble)
+  else if (isKeyword("double", 6))
   {
     match(makeToken(TOKEN_KEYWORD, "double", 6, -1));
   }
   else
   {
-    syntaxError("Expected 'int' or 'double' as type");
-
-    if (look_ahead->type == TOKEN_ID)
-    {
-      return;
-    }
-
-    advanceToken();
-    parseType();
+    handleParseError("Expected 'int' or 'double' as type", isInFollowSetForType, parseType);
   }
 }
 
@@ -659,24 +514,24 @@ void parseStmtsc()
   }
 }
 
-// !remove
-// void syncStmt()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (look_ahead->type == TOKEN_DOT ||
-//         look_ahead->type == TOKEN_SEMICOLON ||
-//         look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-//                                               stringCompare(look_ahead->start, "od", 2) == 0 ||
-//                                               stringCompare(look_ahead->start, "fi", 2) == 0 ||
-//                                               stringCompare(look_ahead->start, "else", 4) == 0))
-//     {
-//       return;
-//     }
+bool isInFollowSetForStmt()
+{
+  switch (look_ahead->type)
+  {
+  case TOKEN_DOT:
+  case TOKEN_SEMICOLON:
+    return true;
 
-//     advanceToken();
-//   }
-// }
+  case TOKEN_KEYWORD:
+    return isKeyword("fed", 3) ||
+           isKeyword("fi", 2) ||
+           isKeyword("od", 2) ||
+           isKeyword("else", 4);
+
+  default:
+    return false;
+  }
+}
 
 void parseStmt()
 {
@@ -688,110 +543,53 @@ void parseStmt()
   // STMT →  ε
   preParse("stmt");
 
-  bool isKeywordIf = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "if", 2) == 0;
-  bool isKeywordWhile = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "while", 5) == 0;
-  bool isKeywordPrint = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "print", 5) == 0;
-  bool isKeywordReturn = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "return", 6) == 0;
-
   if (look_ahead->type == TOKEN_ID)
   {
     parseVar();
 
     if (!match(makeToken(TOKEN_ASSIGN_OP, "=", 1, -1)))
     {
-      syntaxError("Expected '=' for assignment");
-
-      if (look_ahead->type == TOKEN_DOT ||
-          look_ahead->type == TOKEN_SEMICOLON ||
-          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "else", 4) == 0))
-      {
-        return;
-      }
-
-      advanceToken();
-      parseStmt();
+      handleParseError("Expected '=' for assignment", isInFollowSetForStmt, parseStmt);
     }
 
     parseExpr();
   }
-  else if (isKeywordIf)
+  else if (isKeyword("if", 2))
   {
     match(makeToken(TOKEN_KEYWORD, "if", 2, -1));
     parseBexpr();
 
     if (!match(makeToken(TOKEN_KEYWORD, "then", 4, -1)))
     {
-      syntaxError("Missing 'then' after 'if' condition");
-
-      if (look_ahead->type == TOKEN_DOT ||
-          look_ahead->type == TOKEN_SEMICOLON ||
-          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "else", 4) == 0))
-      {
-        return;
-      }
-
-      advanceToken();
-      parseStmt();
+      handleParseError("Missing 'then' after 'if' statement", isInFollowSetForStmt, parseStmt);
     }
 
     parseStmts();
     parseStmtc();
   }
-  else if (isKeywordWhile)
+  else if (isKeyword("while", 5))
   {
     match(makeToken(TOKEN_KEYWORD, "while", 5, -1));
     parseBexpr();
 
     if (!match(makeToken(TOKEN_KEYWORD, "do", 2, -1)))
     {
-      syntaxError("Missing 'do' after 'while' condition");
-
-      if (look_ahead->type == TOKEN_DOT ||
-          look_ahead->type == TOKEN_SEMICOLON ||
-          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "else", 4) == 0))
-      {
-        return;
-      }
-
-      advanceToken();
-      parseStmt();
+      handleParseError("Missing 'do' after 'while' statement", isInFollowSetForStmt, parseStmt);
     }
 
     parseStmts();
 
     if (!match(makeToken(TOKEN_KEYWORD, "od", 2, -1)))
     {
-      syntaxError("Expected 'od' at the end of while loop");
-
-      if (look_ahead->type == TOKEN_DOT ||
-          look_ahead->type == TOKEN_SEMICOLON ||
-          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "else", 4) == 0))
-      {
-        return;
-      }
-
-      advanceToken();
-      parseStmt();
+      handleParseError("Expected 'od' at the end of while loop", isInFollowSetForStmt, parseStmt);
     }
   }
-  else if (isKeywordPrint)
+  else if (isKeyword("print", 5))
   {
     match(makeToken(TOKEN_KEYWORD, "print", 5, -1));
     parseExpr();
   }
-  else if (isKeywordReturn)
+  else if (isKeyword("return", 6))
   {
     match(makeToken(TOKEN_KEYWORD, "return", 6, -1));
     parseExpr();
@@ -802,77 +600,30 @@ void parseStmt()
   }
 }
 
-// !remove
-// void syncStmtc()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (look_ahead->type == TOKEN_DOT ||
-//         look_ahead->type == TOKEN_SEMICOLON ||
-//         look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-//                                               stringCompare(look_ahead->start, "od", 2) == 0 ||
-//                                               stringCompare(look_ahead->start, "fi", 2) == 0 ||
-//                                               stringCompare(look_ahead->start, "else", 4) == 0))
-//     {
-//       return;
-//     }
-
-//     advanceToken();
-//   }
-// }
-
 void parseStmtc()
 {
   // STMTC → fi
   // STMTC → else STMTS fi
   preParse("stmtc");
 
-  bool isKeywordFi = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "fi", 2) == 0;
-  bool isKeywordElse = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "else", 4) == 0;
-
-  if (isKeywordFi)
+  if (isKeyword("fi", 2))
   {
     match(makeToken(TOKEN_KEYWORD, "fi", 2, -1));
   }
-  else if (isKeywordElse)
+  else if (isKeyword("else", 4))
   {
     match(makeToken(TOKEN_KEYWORD, "else", 4, -1));
+
     parseStmts();
 
     if (!match(makeToken(TOKEN_KEYWORD, "fi", 2, -1)))
     {
-      syntaxError("Statement does not end with 'fi'");
-
-      if (look_ahead->type == TOKEN_DOT ||
-          look_ahead->type == TOKEN_SEMICOLON ||
-          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "else", 4) == 0))
-      {
-        return;
-      }
-
-      advanceToken();
-      parseStmtc();
+      handleParseError("Statement does not end with 'fi'", isInFollowSetForStmt, parseStmtc);
     }
   }
   else
   {
-    syntaxError("Expected 'fi' or 'else' for the end of statement");
-
-    if (look_ahead->type == TOKEN_DOT ||
-        look_ahead->type == TOKEN_SEMICOLON ||
-        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                              stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "else", 4) == 0))
-    {
-      return;
-    }
-
-    advanceToken();
-    parseStmtc();
+    handleParseError("Expected 'fi' or 'else' for the end of statement", isInFollowSetForStmt, parseStmtc);
   }
 }
 
@@ -952,38 +703,38 @@ void parseTermc()
   }
 }
 
-// !remove
-// void syncFactor()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (look_ahead->type == TOKEN_DOT ||
-//         look_ahead->type == TOKEN_SEMICOLON ||
-//         look_ahead->type == TOKEN_RIGHT_PAREN ||
-//         look_ahead->type == TOKEN_COMMA ||
-//         look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-//                                               stringCompare(look_ahead->start, "od", 2) == 0 ||
-//                                               stringCompare(look_ahead->start, "fi", 2) == 0 ||
-//                                               stringCompare(look_ahead->start, "else", 4) == 0) ||
-//         look_ahead->type == TOKEN_ADD ||
-//         look_ahead->type == TOKEN_SUB ||
-//         look_ahead->type == TOKEN_MUL ||
-//         look_ahead->type == TOKEN_DIV ||
-//         look_ahead->type == TOKEN_MOD ||
-//         look_ahead->type == TOKEN_LT ||
-//         look_ahead->type == TOKEN_GT ||
-//         look_ahead->type == TOKEN_EQ ||
-//         look_ahead->type == TOKEN_LE ||
-//         look_ahead->type == TOKEN_GE ||
-//         look_ahead->type == TOKEN_NE ||
-//         look_ahead->type == TOKEN_RIGHT_SQUARE_PAREN)
-//     {
-//       return;
-//     }
+bool isInFollowSetForFactor()
+{
+  switch (look_ahead->type)
+  {
+  case TOKEN_DOT:
+  case TOKEN_SEMICOLON:
+  case TOKEN_RIGHT_PAREN:
+  case TOKEN_COMMA:
+  case TOKEN_ADD:
+  case TOKEN_SUB:
+  case TOKEN_MUL:
+  case TOKEN_DIV:
+  case TOKEN_MOD:
+  case TOKEN_LT:
+  case TOKEN_GT:
+  case TOKEN_EQ:
+  case TOKEN_LE:
+  case TOKEN_GE:
+  case TOKEN_NE:
+  case TOKEN_RIGHT_SQUARE_PAREN:
+    return true;
 
-//     advanceToken();
-//   }
-// }
+  case TOKEN_KEYWORD:
+    return isKeyword("fed", 3) ||
+           isKeyword("fi", 2) ||
+           isKeyword("od", 2) ||
+           isKeyword("else", 4);
+
+  default:
+    return false;
+  }
+}
 
 void parseFactor()
 {
@@ -1012,68 +763,12 @@ void parseFactor()
 
     if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
     {
-      syntaxError("Expected ')'");
-
-      if (
-          look_ahead->type == TOKEN_DOT ||
-          look_ahead->type == TOKEN_SEMICOLON ||
-          look_ahead->type == TOKEN_RIGHT_PAREN ||
-          look_ahead->type == TOKEN_COMMA ||
-          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "else", 4) == 0) ||
-          look_ahead->type == TOKEN_ADD ||
-          look_ahead->type == TOKEN_SUB ||
-          look_ahead->type == TOKEN_MUL ||
-          look_ahead->type == TOKEN_DIV ||
-          look_ahead->type == TOKEN_MOD ||
-          look_ahead->type == TOKEN_LT ||
-          look_ahead->type == TOKEN_GT ||
-          look_ahead->type == TOKEN_EQ ||
-          look_ahead->type == TOKEN_LE ||
-          look_ahead->type == TOKEN_GE ||
-          look_ahead->type == TOKEN_NE ||
-          look_ahead->type == TOKEN_RIGHT_SQUARE_PAREN)
-      {
-        return;
-      }
-
-      advanceToken();
-      parseFactor();
+      handleParseError("Expected ')'", isInFollowSetForFactor, parseFactor);
     }
   }
   else
   {
-    syntaxError("Expected an identifier, number, or '(' to start an expression");
-
-    if (
-        look_ahead->type == TOKEN_DOT ||
-        look_ahead->type == TOKEN_SEMICOLON ||
-        look_ahead->type == TOKEN_RIGHT_PAREN ||
-        look_ahead->type == TOKEN_COMMA ||
-        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                              stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "else", 4) == 0) ||
-        look_ahead->type == TOKEN_ADD ||
-        look_ahead->type == TOKEN_SUB ||
-        look_ahead->type == TOKEN_MUL ||
-        look_ahead->type == TOKEN_DIV ||
-        look_ahead->type == TOKEN_MOD ||
-        look_ahead->type == TOKEN_LT ||
-        look_ahead->type == TOKEN_GT ||
-        look_ahead->type == TOKEN_EQ ||
-        look_ahead->type == TOKEN_LE ||
-        look_ahead->type == TOKEN_GE ||
-        look_ahead->type == TOKEN_NE ||
-        look_ahead->type == TOKEN_RIGHT_SQUARE_PAREN)
-    {
-      return;
-    }
-
-    advanceToken();
-    parseFactor();
+    handleParseError("Expected an identifier, number, or '(' to start an expression", isInFollowSetForFactor, parseFactor);
   }
 }
 
@@ -1090,35 +785,7 @@ void parseFactorc()
 
     if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
     {
-      syntaxError("Expected closing parenthesis ')'");
-
-      if (
-          look_ahead->type == TOKEN_DOT ||
-          look_ahead->type == TOKEN_SEMICOLON ||
-          look_ahead->type == TOKEN_RIGHT_PAREN ||
-          look_ahead->type == TOKEN_COMMA ||
-          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "fed", 3) == 0 ||
-                                                stringCompare(look_ahead->start, "od", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "fi", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "else", 4) == 0) ||
-          look_ahead->type == TOKEN_ADD ||
-          look_ahead->type == TOKEN_SUB ||
-          look_ahead->type == TOKEN_MUL ||
-          look_ahead->type == TOKEN_DIV ||
-          look_ahead->type == TOKEN_MOD ||
-          look_ahead->type == TOKEN_LT ||
-          look_ahead->type == TOKEN_GT ||
-          look_ahead->type == TOKEN_EQ ||
-          look_ahead->type == TOKEN_LE ||
-          look_ahead->type == TOKEN_GE ||
-          look_ahead->type == TOKEN_NE ||
-          look_ahead->type == TOKEN_RIGHT_SQUARE_PAREN)
-      {
-        return;
-      }
-
-      advanceToken();
-      parseFactorc();
+      handleParseError("Expected closing parenthesis ')'", isInFollowSetForFactor, parseFactorc);
     }
   }
   else
@@ -1180,9 +847,7 @@ void parseBexprc()
   // BEXPRC → ε
   preParse("bexprc");
 
-  bool isKeywordOr = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "or", 2) == 0;
-
-  if (isKeywordOr)
+  if (isKeyword("or", 2))
   {
     match(makeToken(TOKEN_KEYWORD, "or", 2, -1));
     parseBterm();
@@ -1209,9 +874,7 @@ void parseBtermc()
   // BTERMC → ε
   preParse("btermc");
 
-  bool isKeywordAnd = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "and", 3) == 0;
-
-  if (isKeywordAnd)
+  if (isKeyword("and", 3))
   {
     match(makeToken(TOKEN_KEYWORD, "and", 3, -1));
     parseBfactor();
@@ -1223,23 +886,13 @@ void parseBtermc()
   }
 }
 
-// !remove
-// void syncBfactor()
-// {
-//   while (!isAtEnd())
-//   {
-//     if (
-//         look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "then", 4) == 0 ||
-//                                               stringCompare(look_ahead->start, "do", 2) == 0 ||
-//                                               stringCompare(look_ahead->start, "or", 2) == 0 ||
-//                                               stringCompare(look_ahead->start, "and", 3) == 0))
-//     {
-//       return;
-//     }
-
-//     advanceToken();
-//   }
-// }
+bool isInFollowSetForBfactor()
+{
+  return isKeyword("then", 4) ||
+         isKeyword("do", 2) ||
+         isKeyword("or", 2) ||
+         isKeyword("and", 3);
+}
 
 void parseBfactor()
 {
@@ -1247,16 +900,13 @@ void parseBfactor()
   // BFACTOR → ( EXPR COMP EXPR ) BFACTORC
   preParse("bfactor");
 
-  bool isKeywordNot = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "not", 3) == 0;
-  bool isLeftParen = look_ahead->type == TOKEN_LEFT_PAREN;
-
-  if (isKeywordNot)
+  if (isKeyword("not", 3))
   {
     match(makeToken(TOKEN_KEYWORD, "not", 3, -1));
     parseBfactor();
     parseBfactorc();
   }
-  else if (isLeftParen)
+  else if (look_ahead->type == TOKEN_LEFT_PAREN)
   {
     match(makeToken(TOKEN_LEFT_PAREN, "(", 1, -1));
     parseExpr();
@@ -1265,38 +915,14 @@ void parseBfactor()
 
     if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
     {
-      syntaxError("Expected closing parenthesis ')'");
-
-      if (
-          look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "then", 4) == 0 ||
-                                                stringCompare(look_ahead->start, "do", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "or", 2) == 0 ||
-                                                stringCompare(look_ahead->start, "and", 3) == 0))
-      {
-        return;
-      }
-
-      advanceToken();
-      parseBfactor();
+      handleParseError("Expected closing parenthesis ')'", isInFollowSetForBfactor, parseBfactor);
     }
 
     parseBfactorc();
   }
   else
   {
-    syntaxError("Expected 'not' or '(' for boolean factor");
-
-    if (
-        look_ahead->type == TOKEN_KEYWORD && (stringCompare(look_ahead->start, "then", 4) == 0 ||
-                                              stringCompare(look_ahead->start, "do", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "or", 2) == 0 ||
-                                              stringCompare(look_ahead->start, "and", 3) == 0))
-    {
-      return;
-    }
-
-    advanceToken();
-    parseBfactor();
+    handleParseError("Expected 'not' or '(' for boolean factor", isInFollowSetForBfactor, parseBfactor);
   }
 }
 
@@ -1306,9 +932,7 @@ void parseBfactorc()
   // BFACTORC → ε
   preParse("bfactorc");
 
-  bool isKeywordAnd = look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, "and", 3) == 0;
-
-  if (isKeywordAnd)
+  if (isKeyword("and", 3))
   {
     parseBtermc();
     parseBexprc();
@@ -1318,6 +942,14 @@ void parseBfactorc()
   {
     return;
   }
+}
+
+bool isInFollowSetForComp()
+{
+  return look_ahead->type == TOKEN_LEFT_PAREN ||
+         look_ahead->type == TOKEN_ID ||
+         look_ahead->type == TOKEN_INT ||
+         look_ahead->type == TOKEN_DOUBLE;
 }
 
 void parseComp()
@@ -1351,19 +983,16 @@ void parseComp()
     match(makeToken(TOKEN_NE, "<>", 2, -1));
     break;
   default:
-    syntaxError("Expected a comparison operator");
-
-    if (look_ahead->type == TOKEN_LEFT_PAREN ||
-        look_ahead->type == TOKEN_ID ||
-        look_ahead->type == TOKEN_INT ||
-        look_ahead->type == TOKEN_DOUBLE)
-    {
-      return;
-    }
-
-    advanceToken();
-    parseComp();
+    handleParseError("Expected a comparison operator", isInFollowSetForComp, parseComp);
   }
+}
+
+bool isInFollowSetForVar()
+{
+  return look_ahead->type == TOKEN_SEMICOLON ||
+         look_ahead->type == TOKEN_RIGHT_PAREN ||
+         look_ahead->type == TOKEN_COMMA ||
+         look_ahead->type == TOKEN_ASSIGN_OP;
 }
 
 void parseVar()
@@ -1378,21 +1007,7 @@ void parseVar()
   }
   else
   {
-    syntaxError("Expected an identifier");
-
-    // if match last set, return to parent
-    if (
-        look_ahead->type == TOKEN_SEMICOLON ||
-        look_ahead->type == TOKEN_RIGHT_PAREN ||
-        look_ahead->type == TOKEN_COMMA ||
-        look_ahead->type == TOKEN_ASSIGN_OP)
-    {
-      return;
-    }
-
-    // otherwise, move to next token and redo the current parse function
-    advanceToken();
-    parseVar();
+    handleParseError("Expected an identifier", isInFollowSetForVar, parseVar);
   }
 }
 
