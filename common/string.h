@@ -23,7 +23,20 @@ int _strlen(const char *src);
  *      A negative value if str1 is lexicographically less than str2,
  *      A positive value if str1 is lexicographically greater than str2.
  */
-int _strcmp(char *str1, char *str2);
+int _strcmp(const char *str1, const char *str2);
+
+/**
+ * Compare up to n characters of two strings lexicographically.
+ *
+ * @param str1 Pointer to the first string (null-terminated).
+ * @param str2 Pointer to the second string (null-terminated).
+ * @param n Maximum number of characters to compare.
+ * @return
+ *      0 if both strings are equal within the first n characters,
+ *      A negative value if str1 is lexicographically less than str2,
+ *      A positive value if str1 is lexicographically greater than str2.
+ */
+int _strncmp(char *str1, const char *str2, size_t n);
 
 /**
  * Copy up to n characters from the source string to the destination string.
