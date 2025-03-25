@@ -49,63 +49,11 @@ static const char *keywords[] = {
 
 static const int keywordsCount = sizeof(keywords) / sizeof(keywords[0]);
 
-//> custom-string-functions
-
-/**
- * stringLength
- * Find the size of a string, similar to strlen() in c
- * e.g. stringLength("abc") = 3
- */
-size_t stringLength(const char *str)
-{
-  size_t length = 0;
-  while (str[length] != '\0')
-  {
-    length++;
-  }
-  return length;
-}
-
-/**
- * stringCopy
- * Copy the string, similar to strcpy() in c
- * e.g. stringCopy(&word, "or")
- */
-void stringCopy(char *dest, const char *src)
-{
-  while (*src)
-  {
-    *dest = *src;
-    dest++;
-    src++;
-  }
-
-  *dest = '\0';
-}
-
-/**
- * stringCompare
- * Compare both string, return 0 if string is identical
- * e.g. stringCompare("or", "or");
- */
-int stringCompare(const char *str1, const char *str2, int length)
-{
-  for (int i = 0; i < length; i++)
-  {
-    if (str1[i] != str2[i])
-      return str1[i] - str2[i]; // Return difference in ASCII values
-  }
-
-  return 0; // Return 0 if all characters match
-}
-
-//< custom-string-functions
-
 //> buffer-file-functions
 
 void appendToBuffer(char *buffer, size_t *bufferIndex, const char *message)
 {
-  size_t messageLength = stringLength(message);
+  size_t messageLength = _strlen(message);
 
   // Handle buffer overflow? (later)
   if (*bufferIndex + messageLength >= BUFFER_SIZE - 1)
@@ -115,7 +63,7 @@ void appendToBuffer(char *buffer, size_t *bufferIndex, const char *message)
   }
 
   // Add message to the end of the buffer
-  stringCopy(buffer + *bufferIndex, message);
+  _strncpy(buffer + *bufferIndex, message, messageLength);
   *bufferIndex += messageLength;
 }
 
@@ -135,7 +83,7 @@ int generateFile(const char *fileName, const char *content)
 
   printf("%s\n", content);
 
-  size_t contentLength = stringLength(content);
+  size_t contentLength = _strlen(content);
   if (contentLength == 0)
   {
     close(file);
@@ -150,7 +98,7 @@ int generateFile(const char *fileName, const char *content)
     return -1;
   }
 
-  printf("Successfully writing file: %s\n", fileName);
+  // printf("Successfully writing file: %s\n", fileName);
   close(file);
 
   return 0;
@@ -187,8 +135,6 @@ void handleError(Lexer *lexer, char character)
 {
   // Reset the state to start lexing from the invalid character
   lexer->currentState = STATE_START;
-
-  // Move pointer to the invalid character to start from there
   TransitionState state = lexer->transitionTable[lexer->currentState][character];
 
   // If initial character is valid, then undo the col and forward pointer
@@ -198,6 +144,7 @@ void handleError(Lexer *lexer, char character)
     lexer->scanner.forward--; // Undo the last forward movement
   }
 
+  // Move pointer to the invalid character to start from there
   lexer->scanner.lexemeBegin = lexer->scanner.forward;
 }
 
@@ -205,9 +152,8 @@ Token getNextToken(TransitionState state, Scanner *scanner)
 {
   // Map the state to the corresponding token type
   TokenType tokenType = stateToToken[state];
-
-  int tokenLength = scanner->forward - scanner->lexemeBegin;
   char *startCharacter = scanner->lexemeBegin;
+  int tokenLength = scanner->forward - scanner->lexemeBegin;
 
   // Get the token's lexeme
   char value[tokenLength + 1];
@@ -225,7 +171,7 @@ Token getNextToken(TransitionState state, Scanner *scanner)
     // Check if the lexeme matches any keyword
     for (int i = 0; i < keywordsCount; i++)
     {
-      if (stringCompare(value, keywords[i], stringLength(keywords[i])) == 0)
+      if (_strcmp(value, keywords[i]) == 0)
       {
         isKeyword = true;
       }
@@ -287,7 +233,7 @@ Token *lexicalAnalysis(int *inputFd, int *transitionTableFd)
       Token token = getNextToken(lexer.currentState, &lexer.scanner);
 
       // Token validation, possibly 0
-      if (token.type <= 0)
+      if (token.type <= 0 || token.type == TOKEN_WHITESPACE)
       {
         break;
       }

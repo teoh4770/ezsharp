@@ -2,6 +2,7 @@
 #define PARSER_H
 
 #include "../lexer/lexer.h"
+#include "../common/string.h"
 
 static Token *look_ahead; // Tracks the next token in parsing
 

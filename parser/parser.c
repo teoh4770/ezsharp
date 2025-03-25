@@ -88,7 +88,7 @@ bool matchToken(Token current, Token target)
   }
 
   // Compare lexeme
-  if (stringCompare(current.start, target.start, current.length) != 0)
+  if (_strncmp(current.start, target.start, current.length) != 0)
   {
     puts("-> Token Not Match\n");
     return false;
@@ -105,7 +105,7 @@ bool isAtEnd()
 
 bool isKeyword(const char *keyword, int length)
 {
-  return look_ahead->type == TOKEN_KEYWORD && stringCompare(look_ahead->start, keyword, length) == 0;
+  return look_ahead->type == TOKEN_KEYWORD && _strncmp(look_ahead->start, keyword, length) == 0;
 }
 
 // Handle parse error
@@ -117,7 +117,7 @@ void handleParseError(const char *message, bool (*isInFollowSet)(), void (*parse
 
   if (isAtEnd() || isInFollowSet())
   {
-    return; 
+    return;
   }
 
   advanceToken();

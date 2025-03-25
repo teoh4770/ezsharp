@@ -4,6 +4,7 @@
 #include "scanner.h"
 #include "token.h"
 #include "transition_table.h"
+#include "../common/string.h"
 
 typedef enum
 {
@@ -24,12 +25,6 @@ typedef struct
   int characterCount;
   bool hasNewLine;
 } Lexer;
-
-//> string functions (need to move to common folder)
-size_t stringLength(const char *str);
-void stringCopy(char *dest, const char *src);
-int stringCompare(const char *str1, const char *str2, int length);
-//< string functions
 
 //> file functions (need to move to common folder)
 void appendToBuffer(char *buffer, size_t *bufferIndex, const char *message);
