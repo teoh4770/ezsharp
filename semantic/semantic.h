@@ -4,6 +4,8 @@
 #define MAX_ENTRIES 100 // Adjust as needed
 #define MAX_SCOPES 2    // Adjust as needed
 
+#include "../common/string.h"
+
 // Handling scope and type
 
 typedef enum
@@ -36,8 +38,8 @@ typedef struct
 typedef struct
 {
   SymbolTableEntry entries[MAX_ENTRIES];
-  int entryCount;     // Track the current number of entries
-  char name[50]; // Scope name
+  int entryCount; // Track the current number of entries
+  char name[50];  // Scope name
 } SymbolTable;
 
 // Define the operations for symbol table stack
@@ -51,14 +53,14 @@ typedef struct
 SymbolTable scopes[MAX_SCOPES];
 int scopeCount = 0;
 
+// Scope error handling
+void scopeError(const char *message);
 // Add a new scope
-void pushScope();
+void pushScope(const char *scopeName);
 // Remove the scope at the very top
 SymbolTable *popScope();
 // Get the scope at the very top
 SymbolTable *getSymbolTable();
-// Scope error handling
-void scopeError(const char *message);
 // Insert the symbol at the current scope
 void insertSymbol(SymbolTableEntry entry);
 // Look for the symbol, starting from the very top, then bottom

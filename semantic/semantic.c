@@ -1,24 +1,39 @@
 #include <stdio.h>
 #include "semantic.h"
 
-// Add a new scope
+void scopeError(const char *message)
+{
+  fprintf(stderr, "Scope Error: %s\n", message);
+  return;
+}
+
+SymbolTable *getSymbolTable()
+{
+  if (scopeCount == 0)
+  {
+    scopeError("No scope available to retrieve");
+    return NULL;
+  }
+
+  return &(scopes[scopeCount - 1]);
+}
+
 void pushScope(const char *scopeName)
 {
   if (scopeCount >= MAX_SCOPES)
   {
-    // throw an error
-    scopeError("Maximum scope limit reached.");
+    char errorMsg[100];
+    snprintf(errorMsg, sizeof(errorMsg), "Maximum scope limit of %d reached.", MAX_SCOPES);
+    scopeError(errorMsg);
     return;
   }
 
-  // Create an instance of symbol table
-  // Add the new table to the current scope
   SymbolTable table;
-  // missing scopeName assignment
+  _strncpy(table.name, scopeName, sizeof(table.name) - 1);
+  table.name[sizeof(table.name) - 1] = '\0';
   scopes[scopeCount++] = table;
 }
 
-// Remove the scope at the very top
 SymbolTable *popScope()
 {
   if (scopeCount <= 0)
@@ -33,27 +48,6 @@ SymbolTable *popScope()
   return popTable;
 }
 
-SymbolTable *getSymbolTable()
-{
-  // error handling here
-  if (scopeCount == 0)
-  {
-    scopeError("No scope available to retrieve");
-    return NULL;
-  }
-
-  return &(scopes[scopeCount - 1]);
-}
-
-// Scope error handling
-void scopeError(const char *message)
-{
-  fprintf(stderr, "Scope Error: %s\n", message);
-  return;
-}
-
-// Insert the symbol at the current scope
-// Check for redeclaration at current scope when inserting, throw error if found
 void insertSymbol(SymbolTableEntry entry)
 {
   // Get the current scope
@@ -68,22 +62,36 @@ void insertSymbol(SymbolTableEntry entry)
     return;
   }
 
-  // Error: redeclaration of '[lexeme name]' at line x
   // Check for redeclaration at current scope
-  // todo: implementing redeclaration check
+  for (int i = 0; i < table->entryCount; i++)
+  {
+    if (_strcmp(table->entries[i].lexeme, entry.lexeme) == 0)
+    {
+      char errorMsg[100];
+      snprintf(errorMsg, sizeof(errorMsg), "Redeclaration of '%s' at line %d", entry.lexeme, entry.lineNumber);
+      scopeError(errorMsg);
+      return;
+    }
+  }
 
   // Insert if no redeclaration
   table->entries[table->entryCount++] = entry;
 }
 
-// Search for a symbol from the most recent (top) scope to the oldest (bottom) scope.
 SymbolTableEntry *lookupSymbol(const char *lexeme)
 {
-  // loop through the scopes
-  // get the scope
-  // loop through entries in the scope
-  // compare lexeme with entry lexeme
-  // if match, return the SymbolTableEntry
+  for (int i = scopeCount - 1; i >= 0; i--)
+  {
+    SymbolTable *table = &scopes[i];
+
+    for (int j = 0; j < table->entryCount; j++)
+    {
+      if (_strcmp(table->entries[j].lexeme, lexeme) == 0)
+      {
+        return &(table->entries[j]);
+      }
+    }
+  }
 
   return NULL; // Symbol not found
 }
