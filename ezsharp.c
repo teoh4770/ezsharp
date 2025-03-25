@@ -1,4 +1,4 @@
-// To compile: gcc ezsharp.c lexer/*.c parser/*.c -o ezsharp
+// To compile: gcc ezsharp.c lexer/*.c parser/*.c semantic/*.c -o ezsharp
 
 //> Entry point for our compiler
 
