@@ -50,8 +50,8 @@ typedef struct
 
 // Scopes size of 2: global scope (create at the beginning, destroy at the end), function scope (create at the beginning of def, destroy at fed)
 // One scope = one symbol table
-SymbolTable scopes[MAX_SCOPES];
-int scopeCount = 0;
+static SymbolTable scopes[MAX_SCOPES];
+static int scopeCount = 0;
 
 // Scope error handling
 void scopeError(const char *message);
