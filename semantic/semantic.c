@@ -10,7 +10,8 @@ SymbolTable scopes[MAX_SCOPES];
 // function to create default symbol table
 SymbolTable defaultSymbolTable(const char *scopeName)
 {
-  SymbolTable table = {.entryCount = 0};
+  SymbolTable table;
+  table.entryCount = 0;
   // Update the name of the symbol table
   _strncpy(table.name, scopeName, sizeof(table.name) - 1);
   table.name[sizeof(table.name) - 1] = '\0';
@@ -62,17 +63,17 @@ SymbolTable *getSymbolTable()
 
 void pushScope(const char *scopeName)
 {
-  if (scopeCount >= MAX_SCOPES)
-  {
-    char errorMsg[100];
-    snprintf(errorMsg, sizeof(errorMsg), "Maximum scope limit of %d reached.", MAX_SCOPES);
-    scopeError(errorMsg);
-    return;
-  }
+  // if (scopeCount >= MAX_SCOPES)
+  // {
+  //   char errorMsg[100];
+  //   snprintf(errorMsg, sizeof(errorMsg), "Maximum scope limit of %d reached.", MAX_SCOPES);
+  //   scopeError(errorMsg);
+  //   return;
+  // }
 
   SymbolTable table = defaultSymbolTable(scopeName);
-  scopes[scopeCount++] = table;
-  printScope(&table);
+  // scopes[scopeCount++] = table;
+  // printScope(&table);
 }
 
 SymbolTable *popScope()
