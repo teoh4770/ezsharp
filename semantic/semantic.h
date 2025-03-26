@@ -30,6 +30,7 @@ typedef struct
   DataType returnType;
   SymbolType symbolType;
   int parameterCount;
+  DataType parameters[10];
 } SymbolTableEntry;
 
 // Example:
@@ -37,24 +38,16 @@ typedef struct
 // table.entries[table.entryCount++] = entry;
 typedef struct
 {
+  char name[50];
+  int entryCount;
   SymbolTableEntry entries[MAX_ENTRIES];
-  int entryCount; // Track the current number of entries
-  char name[50];  // Scope name
 } SymbolTable;
 
+// Exported variables
+extern int scopeCount;
+extern SymbolTable scopes[];
+
 // Define the operations for symbol table stack
-// - push scope: enter a new scope
-// - pop scope: discard a scope
-// - insert symbol: add entry to current scope
-// - lookup symbol: to access information related to given name
-
-// Scopes size of 2: global scope (create at the beginning, destroy at the end), function scope (create at the beginning of def, destroy at fed)
-// One scope = one symbol table
-static SymbolTable scopes[MAX_SCOPES];
-static int scopeCount = 0;
-
-// Scope error handling
-void scopeError(const char *message);
 // Add a new scope
 void pushScope(const char *scopeName);
 // Remove the scope at the very top
@@ -66,4 +59,11 @@ void insertSymbol(SymbolTableEntry entry);
 // Look for the symbol, starting from the very top, then bottom
 SymbolTableEntry *lookupSymbol(const char *lexeme);
 
-#endif
+// Scope error handling
+void scopeError(const char *message);
+
+// Debugging
+void printScope(SymbolTable *table);
+void printEntry(SymbolTableEntry entry);
+
+#endif // SEMANTIC_ANALYSIS

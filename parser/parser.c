@@ -14,6 +14,22 @@ Output
 #include <unistd.h> // For write() and close()
 
 #include "parser.h"
+#include "../common/string.h"
+#include "../common/file.h"
+
+// todo: update 1024 to BUFFER_SIZE
+
+// Global variables
+Token *look_ahead = NULL;
+Token identifiers[1024];
+int identifierCount = 0;
+
+// Variable for this module
+char syntaxErrorBuffer[1024 + 1];
+size_t syntaxErrorBufferIndex = 0;
+
+char symbolTableBuffer[1024 + 1];
+size_t symbolTableBufferIndex = 0;
 
 //> Helper Functions
 void addEndToken(Token *tokens, int *tokenCount)
@@ -43,8 +59,8 @@ void printSymbolTable()
   puts("Print out symbol table");
   puts("======================");
 
-  char symbolTable[BUFFER_SIZE + 1];
-  symbolTable[BUFFER_SIZE] = '\0';
+  char symbolTable[1024 + 1];
+  symbolTable[1024] = '\0';
 
   for (int i = 0; i < identifierCount; i++)
   {
@@ -60,8 +76,8 @@ void syntaxError(const char *expectedMessage)
 {
   char *lexeme = getTokenLexeme(look_ahead);
 
-  char syntaxErrorMessage[BUFFER_SIZE + 1];
-  syntaxErrorMessage[BUFFER_SIZE] = '\0';
+  char syntaxErrorMessage[1024 + 1];
+  syntaxErrorMessage[1024] = '\0';
   sprintf(syntaxErrorMessage, "Syntax Error: %s, but found '%s' at line %d\n", expectedMessage, lexeme, look_ahead->line);
 
   appendToBuffer(syntaxErrorBuffer, &syntaxErrorBufferIndex, syntaxErrorMessage);
@@ -158,16 +174,22 @@ void Parse(Token *tokens, int tokenCount)
   remove("symbol_table.txt");
 
   // Initialization
-  syntaxErrorBuffer[BUFFER_SIZE] = '\0';
-  symbolTableBuffer[BUFFER_SIZE] = '\0';
+  syntaxErrorBuffer[1024] = '\0';
+  symbolTableBuffer[1024] = '\0';
   // Add extra $ token to indicate end of input tokens
   addEndToken(tokens, &tokenCount);
   // Initialize the look ahead variable
   look_ahead = tokens;
 
+  // Before start parsing, create a global scope
+  printf("Initial scope count: %d\n", scopeCount);        // Debug
+  printf("Initial look_ahead: %p\n", (void *)look_ahead); // Debug
+
+  // This is troublesome!
+  // pushScope("global");
+
   // Start Parsing, with parseProg as the starting function in Parse()
   parseProg();
-
   if (look_ahead->type == TOKEN_DOLLAR)
   {
     puts("=====================");
@@ -175,6 +197,9 @@ void Parse(Token *tokens, int tokenCount)
     puts("=====================");
 
     printSymbolTable();
+
+    // Reaching the end of the program, pop the final global scope
+    // popScope();
   }
   else
   {
@@ -275,7 +300,9 @@ void parseFn()
     handleParseError("Expected 'def' at the start of function definition", isInFollowSetForFn, parseFn);
   }
 
+  // Todo: get the type
   parseType();
+  // Todo: get the function name
   parseFname();
 
   if (!match(makeToken(TOKEN_LEFT_PAREN, "(", 1, -1)))
@@ -283,12 +310,20 @@ void parseFn()
     handleParseError("Expected '(' after function name", isInFollowSetForFn, parseFn);
   }
 
+  // Todo: get arguments count and each argument type
   parseParams();
 
   if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
   {
     handleParseError("Expected ')' after function parameters", isInFollowSetForFn, parseFn);
   }
+
+  // Todo: insert function symbol at global here
+  // ?need to get line number, lexeme, return type, argument counts and "each argument type"
+
+  // Todo: add function scope here, after closing bracket for function declaration
+  // Todo: get the name of the function
+  // pushScope("function");
 
   parseDecls();
   parseStmts();
@@ -297,6 +332,9 @@ void parseFn()
   {
     handleParseError("Expected 'fed' at the end of function definition", isInFollowSetForFn, parseFn);
   }
+
+  // Todo: remove function scope here
+  // popScope();
 }
 
 void parseParams()
@@ -309,6 +347,7 @@ void parseParams()
   {
     parseType();
     parseVar();
+    // Todo: insert parameters here
     parseParamsc();
   }
   else
@@ -324,7 +363,7 @@ bool isInFollowSetForParamsc()
 
 void parseParamsc()
 {
-  // PARAMSC → , <type> <var> <paramsc> | ε
+  // PARAMSC → , TYPE VAR PARAMSC | ε
   preParse("paramsc");
 
   if (look_ahead->type == TOKEN_COMMA)
@@ -338,6 +377,7 @@ void parseParamsc()
 
     parseType();
     parseVar();
+    // Todo: insert symbol here
     parseParamsc();
   }
   else
@@ -354,6 +394,7 @@ bool isInFollowSetForFname()
 void parseFname()
 {
   // FNAME → ID
+  // I might need the id as well
   preParse("fname");
 
   if (look_ahead->type == TOKEN_ID)
@@ -430,6 +471,7 @@ void parseDecl()
   {
     parseType();
     parseVars();
+    // Todo: insert parameters here
   }
   else
   {

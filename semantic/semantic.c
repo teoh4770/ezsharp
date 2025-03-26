@@ -1,6 +1,48 @@
 #include <stdio.h>
 #include "semantic.h"
 
+// Global variables
+// Scopes size of 2: global scope (create at the beginning, destroy at the end), function scope (create at the beginning of def, destroy at fed)
+// One scope = one symbol table
+int scopeCount = 0;
+SymbolTable scopes[MAX_SCOPES];
+
+// function to create default symbol table
+SymbolTable defaultSymbolTable(const char *scopeName)
+{
+  SymbolTable table = {.entryCount = 0};
+  // Update the name of the symbol table
+  _strncpy(table.name, scopeName, sizeof(table.name) - 1);
+  table.name[sizeof(table.name) - 1] = '\0';
+
+  return table;
+}
+
+void printScope(SymbolTable *table)
+{
+  puts("===============");
+  puts("Print Scope");
+  puts("===============");
+  printf("table name: %s\n", table->name);
+  printf("entry count: %d\n", table->entryCount);
+  for (int i = 0; i < table->entryCount; i++)
+  {
+    printEntry(table->entries[i]);
+  }
+  puts("");
+  puts("");
+}
+
+void printEntry(SymbolTableEntry entry)
+{
+  printf("lexeme: %s\n", entry.lexeme);
+  printf("line: %d\n", entry.lineNumber);
+  printf("arg count: %d\n", entry.parameterCount);
+  printf("return type: %d\n", entry.returnType);
+  printf("symbol type: %d\n", entry.symbolType);
+  puts("");
+}
+
 void scopeError(const char *message)
 {
   fprintf(stderr, "Scope Error: %s\n", message);
@@ -28,10 +70,9 @@ void pushScope(const char *scopeName)
     return;
   }
 
-  SymbolTable table;
-  _strncpy(table.name, scopeName, sizeof(table.name) - 1);
-  table.name[sizeof(table.name) - 1] = '\0';
+  SymbolTable table = defaultSymbolTable(scopeName);
   scopes[scopeCount++] = table;
+  printScope(&table);
 }
 
 SymbolTable *popScope()
@@ -44,6 +85,8 @@ SymbolTable *popScope()
 
   SymbolTable *popTable = &(scopes[scopeCount - 1]);
   scopeCount--;
+
+  printScope(popTable);
 
   return popTable;
 }
@@ -76,6 +119,8 @@ void insertSymbol(SymbolTableEntry entry)
 
   // Insert if no redeclaration
   table->entries[table->entryCount++] = entry;
+  printEntry(entry);
+  printf("entry count: %d", table->entryCount);
 }
 
 SymbolTableEntry *lookupSymbol(const char *lexeme)

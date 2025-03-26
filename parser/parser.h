@@ -1,20 +1,15 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "../lexer/lexer.h"
+// #include "../lexer/lexer.h"
+#include <stdbool.h>
+#include "../lexer/token.h"
 #include "../semantic/semantic.h"
-#include "../common/string.h"
 
-static Token *look_ahead; // Tracks the next token in parsing
-
-static Token identifiers[1024]; // Stores identifier tokens
-static int identifierCount = 0; // Number of identifiers collected
-
-static char syntaxErrorBuffer[BUFFER_SIZE + 1]; // Stores syntax error messages
-static size_t syntaxErrorBufferIndex = 0;       // Tracks the buffer index
-
-static char symbolTableBuffer[BUFFER_SIZE + 1]; // Stores formatted symbol table
-static size_t symbolTableBufferIndex = 0;       // Tracks the buffer index
+// Exported variables
+extern Token *look_ahead;
+extern Token identifiers[];
+extern int identifierCount;
 
 // Helper functions
 void addEndToken(Token *tokens, int *tokenCount);

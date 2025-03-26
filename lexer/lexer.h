@@ -4,7 +4,6 @@
 #include "scanner.h"
 #include "token.h"
 #include "transition_table.h"
-#include "../common/string.h"
 
 typedef enum
 {
