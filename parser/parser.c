@@ -12,12 +12,14 @@ Output
 #include <stdio.h>
 #include <fcntl.h>  // For open() flags
 #include <unistd.h> // For write() and close()
+#include <stdlib.h> // For free()
 
 #include "parser.h"
 #include "../common/string.h"
 #include "../common/file.h"
 
 // todo: update 1024 to BUFFER_SIZE
+#define BUFFER_SIZE 1024
 
 // Global variables
 Token *look_ahead = NULL;
@@ -25,11 +27,19 @@ Token identifiers[1024];
 int identifierCount = 0;
 
 // Variable for this module
-char syntaxErrorBuffer[1024 + 1];
+char syntaxErrorBuffer[BUFFER_SIZE + 1];
 size_t syntaxErrorBufferIndex = 0;
 
-char symbolTableBuffer[1024 + 1];
+char symbolTableBuffer[BUFFER_SIZE + 1];
 size_t symbolTableBufferIndex = 0;
+
+// Semantic analysis global variables
+// Maybe for varlist only?
+DataType tempDeclarationReturnType = INT; // For declaration
+DataType tempArgTypeList[10];             // For arguments
+SymbolTableEntry tempArgList[10];         // For arguments, to include in function scopes
+int argCount = 0;
+// argument list
 
 //> Helper Functions
 void addEndToken(Token *tokens, int *tokenCount)
@@ -52,36 +62,17 @@ void advanceToken()
   }
 }
 
-// print and create symbol table file
-void printSymbolTable()
-{
-  puts("======================");
-  puts("Print out symbol table");
-  puts("======================");
-
-  char symbolTable[1024 + 1];
-  symbolTable[1024] = '\0';
-
-  for (int i = 0; i < identifierCount; i++)
-  {
-    sprintf(symbolTable, "%s\n", getTokenLexeme(&identifiers[i]));
-    appendToBuffer(symbolTableBuffer, &symbolTableBufferIndex, symbolTable);
-  }
-
-  flushBufferToFile("symbol_table.txt", symbolTableBuffer, &symbolTableBufferIndex);
-}
-
 // print and create syntax error file
 void syntaxError(const char *expectedMessage)
 {
   char *lexeme = getTokenLexeme(look_ahead);
+  char syntaxErrorMessage[BUFFER_SIZE + 1];
 
-  char syntaxErrorMessage[1024 + 1];
-  syntaxErrorMessage[1024] = '\0';
   sprintf(syntaxErrorMessage, "Syntax Error: %s, but found '%s' at line %d\n", expectedMessage, lexeme, look_ahead->line);
 
   appendToBuffer(syntaxErrorBuffer, &syntaxErrorBufferIndex, syntaxErrorMessage);
   flushBufferToFile("syntax_analysis_errors.txt", syntaxErrorBuffer, &syntaxErrorBufferIndex);
+  free(lexeme);
 }
 
 bool matchToken(Token current, Token target)
@@ -131,13 +122,16 @@ void handleParseError(const char *message, bool (*isInFollowSet)(), void (*parse
 {
   syntaxError(message);
 
-  if (isAtEnd() || isInFollowSet())
+  // Trigger synchronize function here
+  while (!isAtEnd())
   {
-    return;
-  }
+    if (isInFollowSet())
+    {
+      return;
+    }
 
-  advanceToken();
-  parseFunc();
+    advanceToken();
+  }
 }
 
 //< Helper functions
@@ -174,19 +168,16 @@ void Parse(Token *tokens, int tokenCount)
   remove("symbol_table.txt");
 
   // Initialization
-  syntaxErrorBuffer[1024] = '\0';
-  symbolTableBuffer[1024] = '\0';
+  syntaxErrorBuffer[BUFFER_SIZE] = '\0';
+  symbolTableBuffer[BUFFER_SIZE] = '\0';
   // Add extra $ token to indicate end of input tokens
   addEndToken(tokens, &tokenCount);
   // Initialize the look ahead variable
   look_ahead = tokens;
 
   // Before start parsing, create a global scope
-  printf("Initial scope count: %d\n", scopeCount);        // Debug
-  printf("Initial look_ahead: %p\n", (void *)look_ahead); // Debug
-
-  // This is troublesome!
-  // pushScope("global");
+  printf("Initial scope count: %d\n", scopeCount); // Debug
+  pushScope("global");
 
   // Start Parsing, with parseProg as the starting function in Parse()
   parseProg();
@@ -196,10 +187,8 @@ void Parse(Token *tokens, int tokenCount)
     puts("Parsing Reach To End!");
     puts("=====================");
 
-    printSymbolTable();
-
     // Reaching the end of the program, pop the final global scope
-    // popScope();
+    popScope();
   }
   else
   {
@@ -267,6 +256,7 @@ void parseFns()
     if (!match(makeToken(TOKEN_SEMICOLON, ";", 1, -1)))
     {
       handleParseError("Expected ';' after function definition", isInFollowSetForFns, parseFns);
+      return;
     }
 
     parseFnsc();
@@ -298,32 +288,63 @@ void parseFn()
   if (!match(makeToken(TOKEN_KEYWORD, "def", 3, -1)))
   {
     handleParseError("Expected 'def' at the start of function definition", isInFollowSetForFn, parseFn);
+    return;
   }
 
+  // Initialize the entry
+  SymbolTableEntry entry;
+  entry.symbolType = FUNCTION;
+  entry.lineNumber = look_ahead->line;
+
   // Todo: get the type
-  parseType();
+  DataType type = parseType();
+  entry.returnType = type;
+
   // Todo: get the function name
-  parseFname();
+  char *funcName = parseFname();
+  if (funcName)
+  {
+    _strncpy(entry.lexeme, funcName, _strlen(funcName) + 1);
+    free(funcName);
+  }
 
   if (!match(makeToken(TOKEN_LEFT_PAREN, "(", 1, -1)))
   {
     handleParseError("Expected '(' after function name", isInFollowSetForFn, parseFn);
+    return;
   }
 
   // Todo: get arguments count and each argument type
+  // How: define the arguments count global and argument type array
   parseParams();
+  entry.parameterCount = argCount; // this method is simpler
+  argCount = 0;                    // reset arg count;
+
+  for (int i = 0; i < entry.parameterCount; i++)
+  {
+    entry.parameters[i] = tempArgTypeList[i];
+  }
+
+  // need to update the argument type
 
   if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
   {
     handleParseError("Expected ')' after function parameters", isInFollowSetForFn, parseFn);
+    return;
   }
 
   // Todo: insert function symbol at global here
-  // ?need to get line number, lexeme, return type, argument counts and "each argument type"
+  insertSymbol(entry);
 
   // Todo: add function scope here, after closing bracket for function declaration
   // Todo: get the name of the function
-  // pushScope("function");
+  pushScope("function");
+
+  // I should add the arguments within function scopes
+  for (int i = 0; i < entry.parameterCount; i++)
+  {
+    insertSymbol(tempArgList[i]);
+  }
 
   parseDecls();
   parseStmts();
@@ -331,10 +352,11 @@ void parseFn()
   if (!match(makeToken(TOKEN_KEYWORD, "fed", 3, -1)))
   {
     handleParseError("Expected 'fed' at the end of function definition", isInFollowSetForFn, parseFn);
+    return;
   }
 
   // Todo: remove function scope here
-  // popScope();
+  popScope();
 }
 
 void parseParams()
@@ -345,9 +367,28 @@ void parseParams()
 
   if (isKeyword("int", 3) || isKeyword("double", 6))
   {
-    parseType();
-    parseVar();
-    // Todo: insert parameters here
+    SymbolTableEntry entry;
+    entry.parameterCount = 0;
+    entry.symbolType = VARIABLE;
+    entry.lineNumber = look_ahead->line;
+
+    DataType type = parseType();
+    entry.returnType = type;
+
+    char *paramName = parseVar();
+    if (paramName)
+    {
+      _strncpy(entry.lexeme, paramName, _strlen(paramName) + 1);
+      free(paramName);
+    }
+
+    // Todo: insert parameters to function scope
+    puts("params: print entry");
+    printEntry(entry);
+    tempArgList[argCount] = entry;
+    tempArgTypeList[argCount] = type;
+    argCount++;
+
     parseParamsc();
   }
   else
@@ -373,11 +414,29 @@ void parseParamsc()
     if (!(isKeyword("int", 3) || isKeyword("double", 6)))
     {
       handleParseError("Expected a type ('int' or 'double') after ',' in parameter list", isInFollowSetForParamsc, parseParamsc);
+      return;
     }
 
-    parseType();
-    parseVar();
+    SymbolTableEntry entry;
+    entry.parameterCount = 0;
+    entry.symbolType = VARIABLE;
+    entry.lineNumber = look_ahead->line;
+
+    DataType type = parseType();
+    entry.returnType = type;
+
+    char *paramName = parseVar();
+    if (paramName)
+    {
+      _strncpy(entry.lexeme, paramName, _strlen(paramName) + 1);
+      free(paramName);
+    }
+
     // Todo: insert symbol here
+    tempArgList[argCount] = entry;
+    tempArgTypeList[argCount] = type;
+    argCount++;
+
     parseParamsc();
   }
   else
@@ -391,7 +450,14 @@ bool isInFollowSetForFname()
   return look_ahead->type == TOKEN_LEFT_PAREN;
 }
 
-void parseFname()
+void parseFnameWrapper()
+{
+  // This wrapper is only used for error recovery
+  // The actual type is captured via the return value of parseFname
+  parseFname();
+}
+
+char *parseFname()
 {
   // FNAME → ID
   // I might need the id as well
@@ -399,11 +465,14 @@ void parseFname()
 
   if (look_ahead->type == TOKEN_ID)
   {
+    char *lexeme = getTokenLexeme(look_ahead);
     match(makeToken(TOKEN_ID, look_ahead->start, look_ahead->length, -1));
+    return lexeme;
   }
   else
   {
-    handleParseError("Expected function name (identifier)", isInFollowSetForFname, parseFname);
+    handleParseError("Expected function name (identifier)", isInFollowSetForFname, parseFnameWrapper);
+    return NULL;
   }
 }
 
@@ -439,6 +508,7 @@ void parseDecls()
     if (!match(makeToken(TOKEN_SEMICOLON, ";", 1, -1)))
     {
       handleParseError("Expected semicolon", isInFollowSetForDecls, parseDecls);
+      return;
     }
 
     parseDeclsc();
@@ -462,6 +532,9 @@ bool isInFollowSetForDecl()
   return look_ahead->type == TOKEN_SEMICOLON;
 }
 
+// DECL -> TYPE VAR VARSC
+// VARSC -> , VAR VARSC | epsilon
+
 void parseDecl()
 {
   // DECL → TYPE VARS
@@ -469,13 +542,13 @@ void parseDecl()
 
   if (isKeyword("int", 3) || isKeyword("double", 6))
   {
-    parseType();
+    tempDeclarationReturnType = parseType(); // will be use for defining the variable list
     parseVars();
-    // Todo: insert parameters here
   }
   else
   {
     handleParseError("Expected 'int' or 'double' for declaration", isInFollowSetForDecl, parseDecl);
+    return;
   }
 }
 
@@ -484,7 +557,14 @@ bool isInFollowSetForType()
   return look_ahead->type == TOKEN_ID;
 }
 
-void parseType()
+void parseTypeWrapper()
+{
+  // This wrapper is only used for error recovery
+  // The actual type is captured via the return value of parseType
+  parseType();
+}
+
+int parseType()
 {
   // TYPE → int
   // TYPE → double
@@ -493,14 +573,17 @@ void parseType()
   if (isKeyword("int", 3))
   {
     match(makeToken(TOKEN_KEYWORD, "int", 3, -1));
+    return INT;
   }
   else if (isKeyword("double", 6))
   {
     match(makeToken(TOKEN_KEYWORD, "double", 6, -1));
+    return DOUBLE;
   }
   else
   {
-    handleParseError("Expected 'int' or 'double' as type", isInFollowSetForType, parseType);
+    handleParseError("Expected 'int' or 'double' as type", isInFollowSetForType, parseTypeWrapper);
+    return -1;
   }
 }
 
@@ -509,7 +592,21 @@ void parseVars()
   // VARS → VAR VARSC
   preParse("vars");
 
-  parseVar();
+  SymbolTableEntry entry;
+  entry.parameterCount = 0;
+  entry.symbolType = VARIABLE;
+  entry.returnType = tempDeclarationReturnType;
+  entry.lineNumber = look_ahead->line;
+
+  char *varName = parseVar();
+  if (varName)
+  {
+    _strncpy(entry.lexeme, varName, _strlen(varName) + 1);
+    free(varName);
+  }
+
+  insertSymbol(entry);
+
   parseVarsc();
 }
 
@@ -592,6 +689,7 @@ void parseStmt()
     if (!match(makeToken(TOKEN_ASSIGN_OP, "=", 1, -1)))
     {
       handleParseError("Expected '=' for assignment", isInFollowSetForStmt, parseStmt);
+      return;
     }
 
     parseExpr();
@@ -604,6 +702,7 @@ void parseStmt()
     if (!match(makeToken(TOKEN_KEYWORD, "then", 4, -1)))
     {
       handleParseError("Missing 'then' after 'if' statement", isInFollowSetForStmt, parseStmt);
+      return;
     }
 
     parseStmts();
@@ -617,6 +716,7 @@ void parseStmt()
     if (!match(makeToken(TOKEN_KEYWORD, "do", 2, -1)))
     {
       handleParseError("Missing 'do' after 'while' statement", isInFollowSetForStmt, parseStmt);
+      return;
     }
 
     parseStmts();
@@ -624,6 +724,7 @@ void parseStmt()
     if (!match(makeToken(TOKEN_KEYWORD, "od", 2, -1)))
     {
       handleParseError("Expected 'od' at the end of while loop", isInFollowSetForStmt, parseStmt);
+      return;
     }
   }
   else if (isKeyword("print", 5))
@@ -661,11 +762,13 @@ void parseStmtc()
     if (!match(makeToken(TOKEN_KEYWORD, "fi", 2, -1)))
     {
       handleParseError("Statement does not end with 'fi'", isInFollowSetForStmt, parseStmtc);
+      return;
     }
   }
   else
   {
     handleParseError("Expected 'fi' or 'else' for the end of statement", isInFollowSetForStmt, parseStmtc);
+    return;
   }
 }
 
@@ -806,11 +909,13 @@ void parseFactor()
     if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
     {
       handleParseError("Expected ')'", isInFollowSetForFactor, parseFactor);
+      return;
     }
   }
   else
   {
     handleParseError("Expected an identifier, number, or '(' to start an expression", isInFollowSetForFactor, parseFactor);
+    return;
   }
 }
 
@@ -828,6 +933,7 @@ void parseFactorc()
     if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
     {
       handleParseError("Expected closing parenthesis ')'", isInFollowSetForFactor, parseFactorc);
+      return;
     }
   }
   else
@@ -958,6 +1064,7 @@ void parseBfactor()
     if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
     {
       handleParseError("Expected closing parenthesis ')'", isInFollowSetForBfactor, parseBfactor);
+      return;
     }
 
     parseBfactorc();
@@ -965,6 +1072,7 @@ void parseBfactor()
   else
   {
     handleParseError("Expected 'not' or '(' for boolean factor", isInFollowSetForBfactor, parseBfactor);
+    return;
   }
 }
 
@@ -1026,6 +1134,7 @@ void parseComp()
     break;
   default:
     handleParseError("Expected a comparison operator", isInFollowSetForComp, parseComp);
+    return;
   }
 }
 
@@ -1037,19 +1146,29 @@ bool isInFollowSetForVar()
          look_ahead->type == TOKEN_ASSIGN_OP;
 }
 
-void parseVar()
+void parseVarWrapper()
+{
+  // This wrapper is only used for error recovery
+  // The actual type is captured via the return value of parseVar
+  parseVar();
+}
+
+char *parseVar()
 {
   // VAR → ID VARC
   preParse("var");
 
   if (look_ahead->type == TOKEN_ID)
   {
+    char *lexeme = getTokenLexeme(look_ahead);
     match(makeToken(TOKEN_ID, look_ahead->start, look_ahead->length, -1));
     parseVarc();
+    return lexeme;
   }
   else
   {
-    handleParseError("Expected an identifier", isInFollowSetForVar, parseVar);
+    handleParseError("Expected an identifier", isInFollowSetForVar, parseVarWrapper);
+    return NULL;
   }
 }
 
