@@ -196,7 +196,7 @@ Token *lexicalAnalysis(int *inputFd, int *transitionTableFd)
       char errorMessage[BUFFER_SIZE];
       sprintf(errorMessage, "Lexical Error: Unexpected character '%c' at line %d, column %d!\n",
               character, lexer.scanner.line, lexer.scanner.col);
-      appendToBuffer(errorBuffer, &errorBufferIndex, errorMessage);
+      appendToBuffer(errorBuffer, &errorBufferIndex, errorMessage, "lexical_analysis_errors.txt");
 
       handleError(&lexer, character);
 
@@ -260,7 +260,7 @@ Token *lexicalAnalysis(int *inputFd, int *transitionTableFd)
       sprintf(tokenMessage, "%d\n", token.type);
     }
 
-    appendToBuffer(tokenFileBuffer, &tokenFileBufferIndex, tokenMessage);
+    appendToBuffer(tokenFileBuffer, &tokenFileBufferIndex, tokenMessage, "token_lexeme_pairs.txt");
   }
 
   // Flush buffer contents to the file at the end of lexical analysis

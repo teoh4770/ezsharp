@@ -25,12 +25,6 @@ typedef struct
   bool hasNewLine;
 } Lexer;
 
-//> file functions (need to move to common folder)
-void appendToBuffer(char *buffer, size_t *bufferIndex, const char *message);
-int generateFile(const char *fileName, const char *content);
-void flushBufferToFile(const char *fileName, char *buffer, size_t *bufferIndex);
-//< file functions
-
 Token *lexicalAnalysis(int *inputFd, int *transitionTableFd);
 int getTokenCount();
 
