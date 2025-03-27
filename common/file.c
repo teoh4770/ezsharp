@@ -5,27 +5,28 @@
 // Todo: 1024 to BUFFER_SIZE
 //> buffer-file-functions
 
-void appendToBuffer(char *buffer, size_t *bufferIndex, const char *message)
+void appendToBuffer(char *buffer, size_t *bufferIndex, const char *message, const char *fileName)
 {
   size_t messageLength = _strlen(message);
 
-  // Handle buffer overflow? (later)
+  // If exceed the buffer max length
   if (*bufferIndex + messageLength >= 1024 - 1)
   {
-    // flush the buffer earlier or log an error here
-    return;
+    // Need to get filename
+    flushBufferToFile(fileName, buffer, bufferIndex);
   }
 
-  // Add message to the end of the buffer
+  // Copy message and ensure null termination
   _strncpy(buffer + *bufferIndex, message, messageLength);
   *bufferIndex += messageLength;
+  buffer[*bufferIndex] = '\0'; // Explicitly null-termination
 }
 
 int generateFile(const char *fileName, const char *content)
 {
   // O_WRONLY -> Writing only
   // O_CREAT  -> Create file if it does not exist
-  // O_APPEND -> Append data at the end of the file
+  // O_APPEND -> Append content at the end of the file
   // S_IRUSR  -> Set the read permission for user
   // S_IWUSR  -> Set the write permission for user
   int file = open(fileName, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
@@ -52,7 +53,7 @@ int generateFile(const char *fileName, const char *content)
     return -1;
   }
 
-  // printf("Successfully writing file: %s\n", fileName);
+  printf("Successfully writing to file: %s\n", fileName);
   close(file);
 
   return 0;
@@ -60,8 +61,13 @@ int generateFile(const char *fileName, const char *content)
 
 void flushBufferToFile(const char *fileName, char *buffer, size_t *bufferIndex)
 {
-  generateFile(fileName, buffer);
+  if (*bufferIndex > 0)
+  {
+    buffer[*bufferIndex] = '\0'; // Final null-termination
+    generateFile(fileName, buffer);
+  }
   *bufferIndex = 0; // Reset buffer
+  buffer[0] = '\0'; // Clear buffer content
 }
 
 //< buffer-file-functions
