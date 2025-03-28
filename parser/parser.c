@@ -112,7 +112,7 @@ bool isAtEnd()
 
 bool isKeyword(const char *keyword, int length)
 {
-  return look_ahead->type == TOKEN_KEYWORD && _strncmp(look_ahead->start, keyword, length) == 0;
+  return look_ahead->type == TOKEN_KEYWORD && _strncmp(look_ahead->lexeme, keyword, length) == 0;
 }
 
 // Handle parse error
@@ -465,8 +465,8 @@ char *parseFname()
 
   if (look_ahead->type == TOKEN_ID)
   {
-    char *lexeme = getTokenLexeme(look_ahead);
-    match(makeToken(TOKEN_ID, look_ahead->start, look_ahead->length, -1));
+    char *lexeme = look_ahead->lexeme;
+    match(makeToken(TOKEN_ID, lexeme, look_ahead->length, -1));
     return lexeme;
   }
   else
@@ -893,12 +893,12 @@ void parseFactor()
 
   if (look_ahead->type == TOKEN_ID)
   {
-    match(makeToken(TOKEN_ID, look_ahead->start, look_ahead->length, -1));
+    match(makeToken(TOKEN_ID, look_ahead->lexeme, look_ahead->length, -1));
     parseFactorc();
   }
   else if (isNumber)
   {
-    match(makeToken(look_ahead->type, look_ahead->start, look_ahead->length, -1));
+    match(makeToken(look_ahead->type, look_ahead->lexeme, look_ahead->length, -1));
   }
   else if (look_ahead->type == TOKEN_LEFT_PAREN)
   {
@@ -1160,8 +1160,8 @@ char *parseVar()
 
   if (look_ahead->type == TOKEN_ID)
   {
-    char *lexeme = getTokenLexeme(look_ahead);
-    match(makeToken(TOKEN_ID, look_ahead->start, look_ahead->length, -1));
+    char *lexeme = look_ahead->lexeme;
+    match(makeToken(TOKEN_ID, lexeme, look_ahead->length, -1));
     parseVarc();
     return lexeme;
   }
