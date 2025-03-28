@@ -93,6 +93,7 @@ Token getNextToken(TransitionState state, Scanner *scanner)
   TokenType tokenType = stateToToken[state];
   char *startCharacter = scanner->lexemeBegin;
   int tokenLength = scanner->forward - scanner->lexemeBegin;
+  int tokenLine = scanner->line;
 
   // Get the token's lexeme
   char value[tokenLength + 1];
@@ -120,7 +121,7 @@ Token getNextToken(TransitionState state, Scanner *scanner)
     tokenType = isKeyword ? TOKEN_KEYWORD : TOKEN_ID;
   }
 
-  return makeToken(tokenType, startCharacter, tokenLength, scanner->line);
+  return makeToken(tokenType, startCharacter, tokenLength, tokenLine);
 }
 
 void processToken(Lexer *lexer, TransitionState state)
@@ -244,16 +245,7 @@ Token *lexicalAnalysis(int *inputFd, int *transitionTableFd)
     // If token required attribute value
     if (token.type == TOKEN_KEYWORD || token.type == TOKEN_ID)
     {
-      char tokenValue[token.length + 1]; // token value attribute is optional
-      char *tokenStart = token.start;
-
-      for (int i = 0; i < token.length; i++)
-      {
-        tokenValue[i] = tokenStart[i];
-      }
-      tokenValue[token.length] = '\0';
-
-      sprintf(tokenMessage, "%d %s\n", token.type, tokenValue);
+      sprintf(tokenMessage, "%d %s\n", token.type, token.lexeme);
     }
     else
     {
