@@ -19,10 +19,10 @@ Token makeToken(TokenType type, char *start, int length, int line)
 //> print-token
 void printToken(Token *token)
 {
-  printf("The token starts at line %d\n", token->line);
-  printf("The token type is %d\n", token->type);
-  printf("The token lexeme size is: %d\n", token->length);
-  printf("The token lexeme: %s\n", token->lexeme);
+  printf("Token Line   : %d\n", token->line);
+  printf("Token Type   : %d\n", token->type);
+  printf("Lexeme Size  : %d\n", token->length);
+  printf("Token Lexeme : %s\n", token->lexeme);
 }
 //< print-token
 
@@ -40,7 +40,7 @@ char *getTokenLexeme(Token *token)
   {
     lexeme[i] = token->start[i];
   }
-  
+
   lexeme[token->length] = '\0';
 
   return lexeme;
