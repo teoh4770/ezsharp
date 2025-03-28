@@ -36,11 +36,11 @@ typedef struct
   char *start; // Start of lexeme
   int length;  // Size of lexeme
   int line;
+  char *lexeme; 
 } Token;
 
 Token makeToken(TokenType type, char *start, int length, int line);
 void printToken(Token *token);
-void printTokenLexeme(Token *token);
 char *getTokenLexeme(Token *token);
 
 #endif
