@@ -95,7 +95,7 @@ bool matchToken(Token current, Token target)
   }
 
   // Compare lexeme
-  if (_strncmp(current.start, target.start, current.length) != 0)
+  if (_strncmp(current.lexeme, target.lexeme, current.length) != 0)
   {
     puts("-> Token Not Match\n");
     return false;
@@ -117,7 +117,6 @@ bool isKeyword(const char *keyword, int length)
 
 // Handle parse error
 // Accept both a follow set function
-// And a callback for re-parsing
 void handleParseError(const char *message, bool (*isInFollowSet)(), void (*parseFunc)())
 {
   syntaxError(message);
@@ -132,6 +131,44 @@ void handleParseError(const char *message, bool (*isInFollowSet)(), void (*parse
 
     advanceToken();
   }
+}
+
+// Push scope operation
+void A(char *scopeName)
+{
+  pushScope(scopeName);
+}
+
+// Pop scope operation
+void B()
+{
+  popScope();
+}
+
+// Insert symbol operation
+void C(SymbolType symbolType, DataType returnType, int lineNumber, int parameterCount, char *symbolName)
+{
+  SymbolTableEntry entry;
+  entry.symbolType = symbolType;
+  entry.returnType = returnType;
+  entry.lineNumber = lineNumber;
+  entry.parameterCount = parameterCount;
+
+  // Update entry name
+  _strncpy(entry.lexeme, symbolName, _strlen(symbolName) + 1);
+
+  // Update argument type list
+  for (int i = 0; i < parameterCount; i++)
+  {
+    entry.parameters[i] = tempArgTypeList[i];
+  }
+
+  insertSymbol(entry);
+}
+
+void resetArgCount()
+{
+  argCount = 0;
 }
 
 //< Helper functions
@@ -175,20 +212,13 @@ void Parse(Token *tokens, int tokenCount)
   // Initialize the look ahead variable
   look_ahead = tokens;
 
-  // Before start parsing, create a global scope
-  printf("Initial scope count: %d\n", scopeCount); // Debug
-  pushScope("global");
-
-  // Start Parsing, with parseProg as the starting function in Parse()
+  // Start Parsing, with parseProg as the starting function
   parseProg();
   if (look_ahead->type == TOKEN_DOLLAR)
   {
     puts("=====================");
     puts("Parsing Reach To End!");
     puts("=====================");
-
-    // Reaching the end of the program, pop the final global scope
-    popScope();
   }
   else
   {
@@ -208,12 +238,14 @@ void syncProg()
 
 void parseProg()
 {
-  // PROG → FNS DECLS STMTS .
+  // PROG → A FNS DECLS STMTS B .
   preParse("prog");
 
+  A("global");
   parseFns();
   parseDecls();
   parseStmts();
+  B();
 
   if (!match(makeToken(TOKEN_DOT, ".", 1, -1)))
   {
@@ -282,7 +314,7 @@ bool isInFollowSetForFn()
 
 void parseFn()
 {
-  // FN → def TYPE FNAME ( PARAMS ) DECLS STMTS fed
+  // FN → def TYPE FNAME ( PARAMS ) C A C DECLS STMTS fed B
   preParse("fn");
 
   if (!match(makeToken(TOKEN_KEYWORD, "def", 3, -1)))
@@ -291,22 +323,8 @@ void parseFn()
     return;
   }
 
-  // Initialize the entry
-  SymbolTableEntry entry;
-  entry.symbolType = FUNCTION;
-  entry.lineNumber = look_ahead->line;
-
-  // Todo: get the type
   DataType type = parseType();
-  entry.returnType = type;
-
-  // Todo: get the function name
   char *funcName = parseFname();
-  if (funcName)
-  {
-    _strncpy(entry.lexeme, funcName, _strlen(funcName) + 1);
-    free(funcName);
-  }
 
   if (!match(makeToken(TOKEN_LEFT_PAREN, "(", 1, -1)))
   {
@@ -314,18 +332,8 @@ void parseFn()
     return;
   }
 
-  // Todo: get arguments count and each argument type
-  // How: define the arguments count global and argument type array
+  // Update argument counts
   parseParams();
-  entry.parameterCount = argCount; // this method is simpler
-  argCount = 0;                    // reset arg count;
-
-  for (int i = 0; i < entry.parameterCount; i++)
-  {
-    entry.parameters[i] = tempArgTypeList[i];
-  }
-
-  // need to update the argument type
 
   if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
   {
@@ -333,18 +341,23 @@ void parseFn()
     return;
   }
 
-  // Todo: insert function symbol at global here
-  insertSymbol(entry);
+  // C: Insert function symbol at global scope
+  // A: Insert function scope
+  // C: Insert argument symbol at function scope
+  C(FUNCTION, type, look_ahead->line, argCount, funcName);
 
-  // Todo: add function scope here, after closing bracket for function declaration
-  // Todo: get the name of the function
-  pushScope("function");
+  A(funcName);
 
-  // I should add the arguments within function scopes
-  for (int i = 0; i < entry.parameterCount; i++)
+  for (int i = 0; i < argCount; i++)
   {
-    insertSymbol(tempArgList[i]);
+    C(
+        tempArgList[i].symbolType,
+        tempArgList[i].returnType,
+        tempArgList[i].lineNumber,
+        0,
+        (tempArgList[i].lexeme));
   }
+  resetArgCount();
 
   parseDecls();
   parseStmts();
@@ -355,8 +368,10 @@ void parseFn()
     return;
   }
 
-  // Todo: remove function scope here
-  popScope();
+  // Pop function scope
+  B();
+
+  free(funcName);
 }
 
 void parseParams()
@@ -367,24 +382,24 @@ void parseParams()
 
   if (isKeyword("int", 3) || isKeyword("double", 6))
   {
+    DataType type = parseType();
+    char *paramName = parseVar();
+
+    // ? Refactor
+    // Create symbol table entry for upcoming argument
     SymbolTableEntry entry;
     entry.parameterCount = 0;
     entry.symbolType = VARIABLE;
     entry.lineNumber = look_ahead->line;
-
-    DataType type = parseType();
     entry.returnType = type;
 
-    char *paramName = parseVar();
     if (paramName)
     {
       _strncpy(entry.lexeme, paramName, _strlen(paramName) + 1);
       free(paramName);
     }
 
-    // Todo: insert parameters to function scope
-    puts("params: print entry");
-    printEntry(entry);
+    // Update temporarily argument list and argument type list
     tempArgList[argCount] = entry;
     tempArgTypeList[argCount] = type;
     argCount++;
@@ -417,22 +432,24 @@ void parseParamsc()
       return;
     }
 
+    DataType type = parseType();
+    char *paramName = parseVar();
+
+    // ? Refactor
+    // Create symbol table entry for upcoming argument
     SymbolTableEntry entry;
     entry.parameterCount = 0;
     entry.symbolType = VARIABLE;
     entry.lineNumber = look_ahead->line;
-
-    DataType type = parseType();
     entry.returnType = type;
 
-    char *paramName = parseVar();
     if (paramName)
     {
       _strncpy(entry.lexeme, paramName, _strlen(paramName) + 1);
       free(paramName);
     }
 
-    // Todo: insert symbol here
+    // Update temporarily argument list and argument type list
     tempArgList[argCount] = entry;
     tempArgTypeList[argCount] = type;
     argCount++;
@@ -542,7 +559,7 @@ void parseDecl()
 
   if (isKeyword("int", 3) || isKeyword("double", 6))
   {
-    tempDeclarationReturnType = parseType(); // will be use for defining the variable list
+    tempDeclarationReturnType = parseType(); // Will be use for defining the type of variable list
     parseVars();
   }
   else
@@ -589,25 +606,17 @@ int parseType()
 
 void parseVars()
 {
-  // VARS → VAR VARSC
+  // VARS → VAR C VARSC
   preParse("vars");
 
-  SymbolTableEntry entry;
-  entry.parameterCount = 0;
-  entry.symbolType = VARIABLE;
-  entry.returnType = tempDeclarationReturnType;
-  entry.lineNumber = look_ahead->line;
+  char *variableName = parseVar();
 
-  char *varName = parseVar();
-  if (varName)
-  {
-    _strncpy(entry.lexeme, varName, _strlen(varName) + 1);
-    free(varName);
-  }
-
-  insertSymbol(entry);
+  // C: insert variable symbol
+  C(VARIABLE, tempDeclarationReturnType, look_ahead->line, 0, variableName);
 
   parseVarsc();
+
+  free(variableName);
 }
 
 void parseVarsc()

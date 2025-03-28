@@ -73,4 +73,12 @@ void parseComp();
 char *parseVar();
 void parseVarc();
 
+// Semantic Analysis Handlers (Markers)
+// A: Insert Scope
+// B: Pop Scope
+// C: Insert Symbol
+void A(char *scopeName);
+void B();
+void C(SymbolType symbolType, DataType returnType, int lineNumber, int parameterCount, char *symbolName);
+
 #endif // PARSER_H
