@@ -1,3 +1,3 @@
 def int main() 
   print;
-fed;.
+fed;

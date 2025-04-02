@@ -19,57 +19,10 @@ SymbolTable defaultSymbolTable(const char *scopeName)
   return table;
 }
 
-void printScope(SymbolTable *table)
-{
-  puts("===============");
-  puts("Print Scope");
-  puts("===============");
-  printf("table name: %s\n", table->name);
-  printf("entry count: %d\n", table->entryCount);
-  puts("");
-  for (int i = 0; i < table->entryCount; i++)
-  {
-    printEntry(table->entries[i]);
-  }
-  puts("");
-  puts("");
-}
-
-void printEntry(SymbolTableEntry entry)
-{
-  printf("lexeme: %s\n", entry.lexeme);
-  printf("line: %d\n", entry.lineNumber);
-  printf("arg count: %d\n", entry.parameterCount);
-  printf("return type: %s\n", entry.returnType == INT ? "integer" : "double");
-  printf("symbol type: %s\n", entry.symbolType == VARIABLE ? "variable" : "function");
-
-  for (int i = 0; i < entry.parameterCount; i++)
-  {
-    printf("arg %d type: %s\n", i + 1, entry.parameters[i] == INT ? "integer" : "double");
-  }
-
-  puts("");
-}
-
-void scopeError(const char *message)
-{
-  fprintf(stderr, "Scope Error: %s\n", message);
-  return;
-}
-
-SymbolTable *getSymbolTable()
-{
-  if (scopeCount == 0)
-  {
-    scopeError("No scope available to retrieve");
-    return NULL;
-  }
-
-  return &(scopes[scopeCount - 1]);
-}
-
 void pushScope(const char *scopeName)
 {
+  printf("scope count before push scope: %d\n", scopeCount);
+
   if (scopeCount >= MAX_SCOPES)
   {
     char errorMsg[100];
@@ -100,6 +53,17 @@ SymbolTable *popScope()
   return popTable;
 }
 
+SymbolTable *getSymbolTable()
+{
+  if (scopeCount == 0)
+  {
+    scopeError("No scope available to retrieve");
+    return NULL;
+  }
+
+  return &(scopes[scopeCount - 1]);
+}
+
 void insertSymbol(SymbolTableEntry entry)
 {
   // Get the current scope
@@ -128,10 +92,9 @@ void insertSymbol(SymbolTableEntry entry)
 
   // Insert if no redeclaration
   table->entries[table->entryCount++] = entry;
-  printEntry(entry);
-  printf("entry count: %d\n", table->entryCount);
 }
 
+// Perform lookup from current scope and proceed to parent scopes
 SymbolTableEntry *lookupSymbol(const char *lexeme)
 {
   for (int i = scopeCount - 1; i >= 0; i--)
@@ -140,6 +103,9 @@ SymbolTableEntry *lookupSymbol(const char *lexeme)
 
     for (int j = 0; j < table->entryCount; j++)
     {
+      printEntry(table->entries[j]);
+      printf("lexeme: %s\n", lexeme);
+
       if (_strcmp(table->entries[j].lexeme, lexeme) == 0)
       {
         return &(table->entries[j]);
@@ -148,4 +114,93 @@ SymbolTableEntry *lookupSymbol(const char *lexeme)
   }
 
   return NULL; // Symbol not found
+}
+
+SymbolTableEntry *getFunctionEntry()
+{
+  for (int i = scopeCount - 1; i >= 0; i--)
+  {
+    SymbolTable *table = &scopes[i];
+
+    for (int j = 0; j < table->entryCount; j++)
+    {
+      if (table->entries[j].symbolType == FUNCTION)
+      {
+        return &(table->entries[j]);
+      }
+    }
+  }
+
+  return NULL; // Symbol not found
+}
+
+void scopeError(const char *message)
+{
+  fprintf(stderr, "Scope Error: %s\n", message);
+  return;
+}
+
+void printScope(SymbolTable *table)
+{
+  puts("===============");
+  puts("Print Scope");
+  puts("===============");
+  printf("table name: %s\n", table->name);
+  printf("entry count: %d\n", table->entryCount);
+  puts("");
+  for (int i = 0; i < table->entryCount; i++)
+  {
+    printEntry(table->entries[i]);
+  }
+  puts("");
+  puts("");
+}
+
+void printCurrentScope()
+{
+  SymbolTable *table = &scopes[scopeCount - 1];
+
+  puts("===============");
+  puts("Print Scope");
+  puts("===============");
+  printf("table name: %s\n", table->name);
+  printf("entry count: %d\n", table->entryCount);
+  puts("");
+  for (int i = 0; i < table->entryCount; i++)
+  {
+    printEntry(table->entries[i]);
+  }
+  puts("");
+  puts("");
+}
+
+void printEntry(SymbolTableEntry entry)
+{
+  printf("lexeme: %s\n", entry.lexeme);
+  printf("line: %d\n", entry.lineNumber);
+  printf("arg count: %d\n", entry.parameterCount);
+  printf("return type: %s\n", entry.returnType == INT ? "integer" : "double");
+  printf("symbol type: %s\n", entry.symbolType == VARIABLE ? "variable" : "function");
+
+  for (int i = 0; i < entry.parameterCount; i++)
+  {
+    printf("arg %d type: %s\n", i + 1, entry.parameters[i] == INT ? "integer" : "double");
+  }
+
+  puts("");
+}
+
+const char *dataTypeToString(DataType type)
+{
+  switch (type)
+  {
+  case INT:
+    return "int";
+  case DOUBLE:
+    return "double";
+  case ERROR:
+    return "error";
+  default:
+    return "unknown";
+  }
 }

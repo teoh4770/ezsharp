@@ -4,6 +4,7 @@
 #define MAX_ENTRIES 100 // Adjust as needed
 #define MAX_SCOPES 2    // Adjust as needed
 
+#include <stdbool.h>
 #include "../common/string.h"
 
 // Handling scope and type
@@ -11,7 +12,8 @@
 typedef enum
 {
   INT,
-  DOUBLE
+  DOUBLE,
+  ERROR
 } DataType;
 
 typedef enum
@@ -58,12 +60,16 @@ SymbolTable *getSymbolTable();
 void insertSymbol(SymbolTableEntry entry);
 // Look for the symbol, starting from the very top, then bottom
 SymbolTableEntry *lookupSymbol(const char *lexeme);
+// Look for the function symbol, starting from the very top, then bottom
+SymbolTableEntry *getFunctionEntry();
 
 // Scope error handling
 void scopeError(const char *message);
 
 // Debugging
 void printScope(SymbolTable *table);
+void printCurrentScope();
 void printEntry(SymbolTableEntry entry);
+const char *dataTypeToString(DataType type);
 
 #endif // SEMANTIC_ANALYSIS

@@ -1,3 +1,4 @@
-def int gcd(int a, int b) 
-  int result;
+def int gcd(int a, double b) 
+  double c, d, e, f;
   result = a - b;
+fed;.

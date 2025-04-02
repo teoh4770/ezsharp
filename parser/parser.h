@@ -14,9 +14,15 @@ extern int identifierCount;
 void addEndToken(Token *tokens, int *tokenCount);
 void preParse(const char *message);
 void advanceToken();
+Token *previousToken();
+Token *nextToken();
 void syntaxError(const char *expectedMessage);
 bool matchToken(Token current, Token target);
 bool isAtEnd();
+bool isKeyword(const char *keyword, int length);
+bool isComparison(TokenType type);
+bool isNumber(TokenType type);
+void handleParseError(const char *message, bool (*isInFollowSet)());
 
 // Parsing functions
 bool match(Token token);
@@ -55,30 +61,34 @@ void parseStmts();
 void parseStmtsc();
 void parseStmt();
 void parseStmtc();
-void parseExpr();
-void parseExprc();
-void parseTerm();
-void parseTermc();
-void parseFactor();
-void parseFactorc();
+DataType parseExpr();                   // correct
+DataType parseExprc(DataType leftType); // correct
+DataType parseTerm();                   // correct
+DataType parseTermc(DataType leftType); // correct
+DataType parseFactor();
+void parseFactorc(SymbolTableEntry *symbol);
 void parseExprs();
 void parseExprsc();
+char *parseVar();
+void parseVarc();
+
+// Boolean expression parsing functions
 void parseBexpr();
 void parseBexprc();
 void parseBterm();
 void parseBtermc();
-void parseBfactor();
-void parseBfactorc();
+void parseBfactor(); // Final one
 void parseComp();
-char *parseVar();
-void parseVarc();
+bool isComparison(TokenType type);
 
 // Semantic Analysis Handlers (Markers)
 // A: Insert Scope
 // B: Pop Scope
 // C: Insert Symbol
+// D: Lookup Symbol
 void A(char *scopeName);
 void B();
 void C(SymbolType symbolType, DataType returnType, int lineNumber, int parameterCount, char *symbolName);
+SymbolTableEntry *D(const char *lexeme);
 
 #endif // PARSER_H
