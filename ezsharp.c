@@ -1,4 +1,4 @@
-// To compile: gcc ezsharp.c lexer/*.c parser/*.c semantic/*.c -o ezsharp
+// To compile: gcc ezsharp.c lexer/*.c parser/*.c semantic/*.c common/*.c -o ezsharp
 
 //> Entry point for our compiler
 
@@ -27,7 +27,9 @@ static void error(int line, const char *message)
 int main(int argc, const char *argv[])
 {
   // Open the file with extension ".cp"
-  int fd = open("tests/CorrectSyntax.cp", O_RDONLY);
+  // CorrectSyntaxTest
+  // IncorrectSyntaxTest
+  int fd = open("tests/ParameterMismatch.cp", O_RDONLY);
   if (fd == -1)
   {
     printf("Error Number % d\n", errno);

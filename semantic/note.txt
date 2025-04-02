@@ -1,0 +1,20 @@
+Semantic Analysis
+
+Mainly about scope and type.
+
+Scope is limited to blocks (if, else, while) and functions
+Types to int and double
+
+Working mainly on the Symbol Table
+
+Output:
+- An error log file (if semantic error occurs)
+- Output each level of symbol table (each scope) according to parameters provided in Tasks. Please indent each level so that it is clear where each scope starts and ends and what is included in it.
+
+Todo:
+- [X] Define the structure of symbol table entry
+- [X] Define the structure of symbol table 
+- [X] Create an instance of symbol table
+- [X] Create stack of symbol table and its related functions
+- [] Test the symbol table and its stack, by printing out the message for debugging
+- [X] know that there's only 2 level of scope (global scope and function scope)

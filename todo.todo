@@ -48,9 +48,18 @@ Todo for parser:
   - [X] Ensure the $ token is properly appended at the end of the token list
 
   Error handling
-  - [] implement panic mode
+  - [X] implement panic mode
+    - delete current token
+    - get next token
+    - try finding first set: continue if found
+    - try check follow set: return to parent
+    - if not found, return to parent
 
   Output
-  - [] Collect all identifiers (token ids) and store them in a symbol table. At the end of parsing, print the symbol table in a readable format
-  - [] An error log file with diagnostics
+  - [X] Collect all identifiers (token ids) and store them in a symbol table. At the end of parsing, print the symbol table in a readable format
+  - [X] An error log file with diagnostics
 
+  Testing for Syntax Analyzer:
+    - missing def keyword
+    - int 3 3 3 a; (look for first set)
+      - now instead of going straight to follow set, im able to get int a;

@@ -1,0 +1,21 @@
+Here's a simplified list of semantic tests based on the examples:
+
+- Type Mismatch in Assignment: Assigning a value of the wrong type to a variable.
+
+- Undeclared Variable: Using a variable that has not been declared.
+
+- Function Return Type Mismatch: Returning a value of the wrong type from a function.
+
+- Function Parameter Type Mismatch: Passing arguments of the wrong type to a function.
+
+- Invalid Boolean Expression: Using non-boolean expressions in conditional statements (if, while).
+
+- Array Index Type Mismatch: Using a non-integer type as an array index.
+
+- Type Mismatch in Comparison: Comparing incompatible data types.
+
+- Missing Return Value: Not returning a value from a function declared with a non-void type.
+
+- Redeclaration Error: Declaring the same variable with a different type.
+
+- Incorrect Number of Function Arguments: Calling a function with too few or too many arguments.
