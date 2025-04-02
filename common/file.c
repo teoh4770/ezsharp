@@ -54,7 +54,7 @@ int generateFile(const char *fileName, const char *content)
     return -1;
   }
 
-  printf("Successfully writing to file: %s\n", fileName);
+  printf("Writing to file: %s\n", fileName);
   close(file);
 
   return 0;

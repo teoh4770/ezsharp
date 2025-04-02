@@ -1,9 +1,9 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include <stdbool.h>
 #include "../lexer/token.h"
 #include "../semantic/semantic.h"
+#include <stdbool.h>
 
 // Exported variables
 extern Token *look_ahead;
@@ -25,7 +25,7 @@ bool isNumber(TokenType type);
 void handleParseError(const char *message, bool (*isInFollowSet)());
 
 // Parsing functions
-bool match(Token token);
+bool match(TokenType tokenType, char *lexeme);
 void Parse(Token *tokens, int tokenCount);
 
 // Follow Set functions
@@ -61,10 +61,10 @@ void parseStmts();
 void parseStmtsc();
 void parseStmt();
 void parseStmtc();
-DataType parseExpr();                   // correct
-DataType parseExprc(DataType leftType); // correct
-DataType parseTerm();                   // correct
-DataType parseTermc(DataType leftType); // correct
+DataType parseExpr();
+DataType parseExprc(DataType leftType);
+DataType parseTerm();
+DataType parseTermc(DataType leftType);
 DataType parseFactor();
 void parseFactorc(SymbolTableEntry *symbol);
 void parseExprs();
@@ -88,7 +88,8 @@ bool isComparison(TokenType type);
 // D: Lookup Symbol
 void A(char *scopeName);
 void B();
-void C(SymbolType symbolType, DataType returnType, int lineNumber, int parameterCount, char *symbolName);
+void C(SymbolType symbolType, DataType returnType, int lineNumber,
+       int parameterCount, char *symbolName);
 SymbolTableEntry *D(const char *lexeme);
 
 #endif // PARSER_H

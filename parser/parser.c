@@ -1,13 +1,13 @@
 // parser.c: the main component to handle parsing
 
+#include <fcntl.h> // For open() flags
 #include <stdio.h>
-#include <fcntl.h>  // For open() flags
-#include <unistd.h> // For write() and close()
 #include <stdlib.h> // For free()
+#include <unistd.h> // For write() and close()
 
-#include "parser.h"
-#include "../common/string.h"
 #include "../common/file.h"
+#include "../common/string.h"
+#include "parser.h"
 
 #define BUFFER_SIZE 1024
 
@@ -24,122 +24,80 @@ char symbolTableBuffer[BUFFER_SIZE + 1];
 size_t symbolTableBufferIndex = 0;
 
 // Semantic analysis global variables
-// Maybe for varlist only?
-DataType tempDeclarationReturnType = INT; // For declaration
-DataType tempArgTypeList[10];             // For arguments
-SymbolTableEntry tempArgList[10];         // For arguments, to include in function scopes
+// For varlist only
+DataType tempDeclarationReturnType = INT;
+DataType tempArgTypeList[10];
+SymbolTableEntry tempArgList[10];
 int argCount = 0;
-// argument list
 
 //> Helper Functions
-void addEndToken(Token *tokens, int *tokenCount)
-{
+void addEndToken(Token *tokens, int *tokenCount) {
   // need to update the token
   tokens[*tokenCount] = makeToken(TOKEN_DOLLAR, "$", 1, -1);
   (*tokenCount)++;
 }
 
-void preParse(const char *message)
-{
+void preParse(const char *message) {
   printf("Currently parsing: %s\n", message);
 }
 
-void advanceToken()
-{
-  if (look_ahead->type != TOKEN_DOLLAR)
-  {
+void advanceToken() {
+  if (look_ahead->type != TOKEN_DOLLAR) {
     look_ahead++;
   }
 }
 
-Token *previousToken()
-{
-  return look_ahead - 1;
-}
+Token *previousToken() { return look_ahead - 1; }
 
-Token *nextToken()
-{
-  return look_ahead + 1;
-}
+Token *nextToken() { return look_ahead + 1; }
 
-void syntaxError(const char *expectedMessage)
-{
-  // print and create syntax error file
-
+void syntaxError(const char *expectedMessage) {
   char *lexeme = getTokenLexeme(look_ahead);
   char syntaxErrorMessage[BUFFER_SIZE + 1];
 
-  sprintf(syntaxErrorMessage, "Syntax Error: %s, but found '%s' at line %d\n", expectedMessage, lexeme, look_ahead->line);
+  // Print and create syntax error file
+  sprintf(syntaxErrorMessage, "Syntax Error: %s, but found '%s' at line %d\n",
+          expectedMessage, lexeme, look_ahead->line);
 
-  appendToBuffer(syntaxErrorBuffer, &syntaxErrorBufferIndex, syntaxErrorMessage, "syntax_analysis_errors.txt");
-  flushBufferToFile("syntax_analysis_errors.txt", syntaxErrorBuffer, &syntaxErrorBufferIndex);
+  appendToBuffer(syntaxErrorBuffer, &syntaxErrorBufferIndex, syntaxErrorMessage,
+                 "syntax_analysis_errors.txt");
+  flushBufferToFile("syntax_analysis_errors.txt", syntaxErrorBuffer,
+                    &syntaxErrorBufferIndex);
+
   free(lexeme);
 }
 
-bool matchToken(Token current, Token target)
-{
-  puts("================");
-  puts("Look-ahead Token");
-  puts("================");
-  printToken(&current);
-
-  puts("============");
-  puts("Target Token");
-  puts("============");
-  printToken(&target);
-
-  // Compare token type
-  if (current.type != target.type)
-  {
-    puts("-> Token Not Match\n");
+bool matchToken(Token current, Token target) {
+  // Compare token type and lexeme
+  if (current.type != target.type ||
+      _strncmp(current.lexeme, target.lexeme, current.length) != 0) {
     return false;
   }
 
-  // Compare lexeme
-  if (_strncmp(current.lexeme, target.lexeme, current.length) != 0)
-  {
-    puts("-> Token Not Match\n");
-    return false;
-  }
-
-  puts("-> Token Match\n");
   return true;
 };
 
-bool isAtEnd()
-{
-  return look_ahead->type == TOKEN_DOLLAR;
+bool isAtEnd() { return look_ahead->type == TOKEN_DOLLAR; }
+
+bool isKeyword(const char *keyword, int length) {
+  return look_ahead->type == TOKEN_KEYWORD &&
+         _strncmp(look_ahead->lexeme, keyword, length) == 0;
 }
 
-bool isKeyword(const char *keyword, int length)
-{
-  return look_ahead->type == TOKEN_KEYWORD && _strncmp(look_ahead->lexeme, keyword, length) == 0;
+bool isComparison(TokenType type) {
+  return type == TOKEN_LT || type == TOKEN_LE || type == TOKEN_GT ||
+         type == TOKEN_GE || type == TOKEN_EQ || type == TOKEN_NE;
 }
 
-bool isComparison(TokenType type)
-{
-  return type == TOKEN_LT ||
-         type == TOKEN_LE ||
-         type == TOKEN_GT ||
-         type == TOKEN_GE ||
-         type == TOKEN_EQ ||
-         type == TOKEN_NE;
-}
-
-bool isNumber(TokenType type)
-{
+bool isNumber(TokenType type) {
   return type == TOKEN_INT || type == TOKEN_DOUBLE;
 }
 
-void handleParseError(const char *message, bool (*isInFollowSet)())
-{
+void handleParseError(const char *message, bool (*isInFollowSet)()) {
   syntaxError(message);
 
-  // Trigger synchronize function here
-  while (!isAtEnd())
-  {
-    if (isInFollowSet())
-    {
+  while (!isAtEnd()) {
+    if (isInFollowSet()) {
       return;
     }
 
@@ -148,20 +106,14 @@ void handleParseError(const char *message, bool (*isInFollowSet)())
 }
 
 // Push scope operation
-void A(char *scopeName)
-{
-  pushScope(scopeName);
-}
+void A(char *scopeName) { pushScope(scopeName); }
 
 // Pop scope operation
-void B()
-{
-  popScope();
-}
+void B() { popScope(); }
 
 // Insert symbol operation
-void C(SymbolType symbolType, DataType returnType, int lineNumber, int parameterCount, char *symbolName)
-{
+void C(SymbolType symbolType, DataType returnType, int lineNumber,
+       int parameterCount, char *symbolName) {
   SymbolTableEntry entry;
   entry.symbolType = symbolType;
   entry.returnType = returnType;
@@ -172,8 +124,7 @@ void C(SymbolType symbolType, DataType returnType, int lineNumber, int parameter
   _strncpy(entry.lexeme, symbolName, _strlen(symbolName) + 1);
 
   // Update argument type list
-  for (int i = 0; i < parameterCount; i++)
-  {
+  for (int i = 0; i < parameterCount; i++) {
     entry.parameters[i] = tempArgTypeList[i];
   }
 
@@ -181,46 +132,31 @@ void C(SymbolType symbolType, DataType returnType, int lineNumber, int parameter
 }
 
 // Look up symbol when a variable is being reference
-SymbolTableEntry *D(const char *lexeme)
-{
-  return lookupSymbol(lexeme);
-}
+SymbolTableEntry *D(const char *lexeme) { return lookupSymbol(lexeme); }
 
-// Perform type checking for
-// - variable assignment (x = 3 should ensure x is of correct type) (nonterminal = STMT)
-// - function call (ensure correct parameter types and return type)
-// - comparison (x == x, x < y)
-
-void resetArgCount()
-{
-  argCount = 0;
-}
+void resetArgCount() { argCount = 0; }
 
 //< Helper functions
 
 //> Parse Functions
-bool match(Token token)
-{
-  // If token matched
-  // Update our symbol table
-  // Move to the next token
-  if (matchToken(*look_ahead, token))
-  {
-    if (look_ahead->type == TOKEN_ID)
-    {
-      identifiers[identifierCount++] = *look_ahead;
-    }
+bool match(TokenType tokenType, char *lexeme) {
+  // Line number is set to -1, since it is not important for token match
+  Token targetToken = makeToken(tokenType, lexeme, _strlen(lexeme), -1);
 
-    advanceToken();
-
-    return true;
+  if (!matchToken(*look_ahead, targetToken)) {
+    return false;
   }
 
-  return false;
+  if (look_ahead->type == TOKEN_ID) {
+    identifiers[identifierCount++] = *look_ahead;
+  }
+
+  advanceToken();
+
+  return true;
 }
 
-void Parse(Token *tokens, int tokenCount)
-{
+void Parse(Token *tokens, int tokenCount) {
   puts("===============");
   puts("Start parsing!");
   puts("===============");
@@ -232,37 +168,33 @@ void Parse(Token *tokens, int tokenCount)
   // Initialization
   syntaxErrorBuffer[BUFFER_SIZE] = '\0';
   symbolTableBuffer[BUFFER_SIZE] = '\0';
+
   // Add extra $ token to indicate end of input tokens
   addEndToken(tokens, &tokenCount);
+
   // Initialize the look ahead variable
   look_ahead = tokens;
 
   // Start Parsing, with parseProg as the starting function
   parseProg();
-  if (look_ahead->type == TOKEN_DOLLAR)
-  {
+  if (look_ahead->type == TOKEN_DOLLAR) {
     puts("=====================");
     puts("Parsing Reach To End!");
     puts("=====================");
-  }
-  else
-  {
+  } else {
     puts("=========================");
     puts("Parsing Not Reach To End!");
     puts("=========================");
   }
 }
 
-void syncProg()
-{
-  while (!isAtEnd())
-  {
+void syncProg() {
+  while (!isAtEnd()) {
     advanceToken();
   }
 }
 
-void parseProg()
-{
+void parseProg() {
   // PROG → A FNS DECLS STMTS B .
   preParse("prog");
 
@@ -272,18 +204,16 @@ void parseProg()
   parseStmts();
   B();
 
-  if (!match(makeToken(TOKEN_DOT, ".", 1, -1)))
-  {
+  if (!match(TOKEN_DOT, ".")) {
     syntaxError("Expected '.' to indicate end of the program");
     syncProg();
+
     return;
   }
 }
 
-bool isInFollowSetForFns()
-{
-  switch (look_ahead->type)
-  {
+bool isInFollowSetForFns() {
+  switch (look_ahead->type) {
   case TOKEN_DOT:
   case TOKEN_SEMICOLON:
   case TOKEN_ID:
@@ -291,68 +221,58 @@ bool isInFollowSetForFns()
   case TOKEN_DOUBLE:
     return true;
   case TOKEN_KEYWORD:
-    return isKeyword("if", 2) ||
-           isKeyword("while", 5) ||
-           isKeyword("print", 5) ||
-           isKeyword("return", 6);
+    return isKeyword("if", 2) || isKeyword("while", 5) ||
+           isKeyword("print", 5) || isKeyword("return", 6);
   default:
     return false;
   }
 }
 
-void parseFns()
-{
+void parseFns() {
   // FNS → FN ; FNSC
   // FNS → ε
   preParse("fns");
 
-  if (isKeyword("def", 3))
-  {
+  if (isKeyword("def", 3)) {
     parseFn();
 
-    if (!match(makeToken(TOKEN_SEMICOLON, ";", 1, -1)))
-    {
-      handleParseError("Expected ';' after function definition", isInFollowSetForFns);
+    if (!match(TOKEN_SEMICOLON, ";")) {
+      handleParseError("Expected ';' after function definition",
+                       isInFollowSetForFns);
       return;
     }
 
     parseFnsc();
-  }
-  else
-  {
+
     return;
   }
+
+  return;
 }
 
-void parseFnsc()
-{
+void parseFnsc() {
   // FNSC → FN; FNSC
   // FNSC → ε
   preParse("fnsc");
   parseFns();
 }
 
-bool isInFollowSetForFn()
-{
-  return look_ahead->type == TOKEN_SEMICOLON;
-}
+bool isInFollowSetForFn() { return look_ahead->type == TOKEN_SEMICOLON; }
 
-void parseFn()
-{
+void parseFn() {
   // FN → def TYPE FNAME ( PARAMS ) C A C DECLS STMTS fed B
   preParse("fn");
 
-  if (!match(makeToken(TOKEN_KEYWORD, "def", 3, -1)))
-  {
-    handleParseError("Expected 'def' at the start of function definition", isInFollowSetForFn);
+  if (!match(TOKEN_KEYWORD, "def")) {
+    handleParseError("Expected 'def' at the start of function definition",
+                     isInFollowSetForFn);
     return;
   }
 
   DataType type = parseType();
   char *funcName = parseFname();
 
-  if (!match(makeToken(TOKEN_LEFT_PAREN, "(", 1, -1)))
-  {
+  if (!match(TOKEN_LEFT_PAREN, "(")) {
     handleParseError("Expected '(' after function name", isInFollowSetForFn);
     return;
   }
@@ -360,9 +280,9 @@ void parseFn()
   // Update argument counts
   parseParams();
 
-  if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
-  {
-    handleParseError("Expected ')' after function parameters", isInFollowSetForFn);
+  if (!match(TOKEN_RIGHT_PAREN, ")")) {
+    handleParseError("Expected ')' after function parameters",
+                     isInFollowSetForFn);
     return;
   }
 
@@ -373,23 +293,18 @@ void parseFn()
 
   A(funcName);
 
-  for (int i = 0; i < argCount; i++)
-  {
-    C(
-        tempArgList[i].symbolType,
-        tempArgList[i].returnType,
-        tempArgList[i].lineNumber,
-        0,
-        (tempArgList[i].lexeme));
+  for (int i = 0; i < argCount; i++) {
+    C(tempArgList[i].symbolType, tempArgList[i].returnType,
+      tempArgList[i].lineNumber, 0, (tempArgList[i].lexeme));
   }
   resetArgCount();
 
   parseDecls();
   parseStmts();
 
-  if (!match(makeToken(TOKEN_KEYWORD, "fed", 3, -1)))
-  {
-    handleParseError("Expected 'fed' at the end of function definition", isInFollowSetForFn);
+  if (!match(TOKEN_KEYWORD, "fed")) {
+    handleParseError("Expected 'fed' at the end of function definition",
+                     isInFollowSetForFn);
     return;
   }
 
@@ -399,15 +314,14 @@ void parseFn()
   free(funcName);
 }
 
-void parseParams()
-{
+void parseParams() {
   // PARAMS → TYPE VAR PARAMSC
   // PARAMS → ε
   preParse("params");
 
-  if (isKeyword("int", 3) || isKeyword("double", 6))
-  {
+  if (isKeyword("int", 3) || isKeyword("double", 6)) {
     DataType type = parseType();
+
     char *paramName = parseVar();
 
     // ? Refactor
@@ -418,8 +332,7 @@ void parseParams()
     entry.lineNumber = look_ahead->line;
     entry.returnType = type;
 
-    if (paramName)
-    {
+    if (paramName) {
       _strncpy(entry.lexeme, paramName, _strlen(paramName) + 1);
       free(paramName);
     }
@@ -430,30 +343,24 @@ void parseParams()
     argCount++;
 
     parseParamsc();
-  }
-  else
-  {
+
     return;
   }
+
+  return;
 }
 
-bool isInFollowSetForParamsc()
-{
-  return look_ahead->type == TOKEN_RIGHT_PAREN;
-}
+bool isInFollowSetForParamsc() { return look_ahead->type == TOKEN_RIGHT_PAREN; }
 
-void parseParamsc()
-{
+void parseParamsc() {
   // PARAMSC → , TYPE VAR PARAMSC | ε
   preParse("paramsc");
 
-  if (look_ahead->type == TOKEN_COMMA)
-  {
-    match(makeToken(TOKEN_COMMA, ",", 1, -1));
-
-    if (!(isKeyword("int", 3) || isKeyword("double", 6)))
-    {
-      handleParseError("Expected a type ('int' or 'double') after ',' in parameter list", isInFollowSetForParamsc);
+  if (match(TOKEN_COMMA, ",")) {
+    if (!(isKeyword("int", 3) || isKeyword("double", 6))) {
+      handleParseError(
+          "Expected a type ('int' or 'double') after ',' in parameter list",
+          isInFollowSetForParamsc);
       return;
     }
 
@@ -461,15 +368,13 @@ void parseParamsc()
     char *paramName = parseVar();
 
     // ? Refactor
-    // Create symbol table entry for upcoming argument
     SymbolTableEntry entry;
     entry.parameterCount = 0;
     entry.symbolType = VARIABLE;
     entry.lineNumber = look_ahead->line;
     entry.returnType = type;
 
-    if (paramName)
-    {
+    if (paramName) {
       _strncpy(entry.lexeme, paramName, _strlen(paramName) + 1);
       free(paramName);
     }
@@ -480,183 +385,138 @@ void parseParamsc()
     argCount++;
 
     parseParamsc();
-  }
-  else
-  {
+
     return;
   }
+
+  return;
 }
 
-bool isInFollowSetForFname()
-{
-  return look_ahead->type == TOKEN_LEFT_PAREN;
-}
+bool isInFollowSetForFname() { return look_ahead->type == TOKEN_LEFT_PAREN; }
 
-char *parseFname()
-{
+char *parseFname() {
   // FNAME → ID
-  // I might need the id as well
   preParse("fname");
 
-  if (look_ahead->type == TOKEN_ID)
-  {
+  if (look_ahead->type == TOKEN_ID) {
     char *lexeme = look_ahead->lexeme;
-    match(makeToken(TOKEN_ID, lexeme, look_ahead->length, -1));
+    match(TOKEN_ID, lexeme);
+
     return lexeme;
   }
-  else
-  {
-    handleParseError("Expected function name (identifier)", isInFollowSetForFname);
-    return NULL;
-  }
+
+  handleParseError("Expected function name (identifier)",
+                   isInFollowSetForFname);
+  return NULL;
 }
 
-bool isInFollowSetForDecls()
-{
-  switch (look_ahead->type)
-  {
+bool isInFollowSetForDecls() {
+  switch (look_ahead->type) {
   case TOKEN_DOT:
   case TOKEN_SEMICOLON:
   case TOKEN_ID:
     return true;
   case TOKEN_KEYWORD:
-    return isKeyword("fed", 3) ||
-           isKeyword("if", 2) ||
-           isKeyword("while", 5) ||
-           isKeyword("print", 5) ||
-           isKeyword("return", 6);
+    return isKeyword("fed", 3) || isKeyword("if", 2) || isKeyword("while", 5) ||
+           isKeyword("print", 5) || isKeyword("return", 6);
   default:
     return false;
   }
 }
 
-void parseDecls()
-{
+void parseDecls() {
   // DECLS → DECL; DECLSC
   // DECLS → ε
   preParse("decls");
 
-  if (isKeyword("int", 3) || isKeyword("double", 6))
-  {
+  if (isKeyword("int", 3) || isKeyword("double", 6)) {
     parseDecl();
 
-    if (!match(makeToken(TOKEN_SEMICOLON, ";", 1, -1)))
-    {
+    if (!match(TOKEN_SEMICOLON, ";")) {
       handleParseError("Expected semicolon", isInFollowSetForDecls);
       return;
     }
 
     parseDeclsc();
-  }
-  else
-  {
+
     return;
   }
+
+  return;
 }
 
-void parseDeclsc()
-{
+void parseDeclsc() {
   // DECLSC → DECL; DECLSC
   // DECLSC → ε
   preParse("declsc");
   parseDecls();
 }
 
-bool isInFollowSetForDecl()
-{
-  return look_ahead->type == TOKEN_SEMICOLON;
-}
+bool isInFollowSetForDecl() { return look_ahead->type == TOKEN_SEMICOLON; }
 
 // DECL -> TYPE VARS
 
-void parseDecl()
-{
+void parseDecl() {
   // DECL → TYPE VARS
   preParse("decl");
 
-  if (isKeyword("int", 3) || isKeyword("double", 6))
-  {
-    tempDeclarationReturnType = parseType(); // Will be use for defining the type of variable list
+  if (isKeyword("int", 3) || isKeyword("double", 6)) {
+    // Will be use for defining the type of variable list
+    tempDeclarationReturnType = parseType();
     parseVars();
-  }
-  else
-  {
-    handleParseError("Expected 'int' or 'double' for declaration", isInFollowSetForDecl);
+
     return;
   }
+
+  handleParseError("Expected 'int' or 'double' for declaration",
+                   isInFollowSetForDecl);
+
+  return;
 }
 
-bool isInFollowSetForType()
-{
-  return look_ahead->type == TOKEN_ID;
-}
+bool isInFollowSetForType() { return look_ahead->type == TOKEN_ID; }
 
-void parseTypeWrapper()
-{
-  // This wrapper is only used for error recovery
-  // The actual type is captured via the return value of parseType
-  parseType();
-}
-
-int parseType()
-{
+int parseType() {
   // TYPE → int
   // TYPE → double
   preParse("type");
 
-  if (isKeyword("int", 3))
-  {
-    match(makeToken(TOKEN_KEYWORD, "int", 3, -1));
+  if (match(TOKEN_KEYWORD, "int")) {
     return INT;
-  }
-  else if (isKeyword("double", 6))
-  {
-    match(makeToken(TOKEN_KEYWORD, "double", 6, -1));
+  } else if (match(TOKEN_KEYWORD, "double")) {
     return DOUBLE;
-  }
-  else
-  {
-    handleParseError("Expected 'int' or 'double' as type", isInFollowSetForType);
+  } else {
+    handleParseError("Expected 'int' or 'double' as type",
+                     isInFollowSetForType);
     return -1;
   }
 }
 
-void parseVars()
-{
+void parseVars() {
   // VARS → VAR C VARSC
   preParse("vars");
 
   char *variableName = parseVar();
-
-  // C: insert variable symbol
   C(VARIABLE, tempDeclarationReturnType, look_ahead->line, 0, variableName);
-
-  printCurrentScope();
-
   parseVarsc();
 
   free(variableName);
 }
 
-void parseVarsc()
-{
+void parseVarsc() {
   // VARSC → , VARS
   // VARSC → ε
   preParse("varsc");
 
-  if (look_ahead->type == TOKEN_COMMA)
-  {
-    match(makeToken(TOKEN_COMMA, ",", 1, -1));
+  if (match(TOKEN_COMMA, ",")) {
     parseVars();
-  }
-  else
-  {
     return;
   }
+
+  return;
 }
 
-void parseStmts()
-{
+void parseStmts() {
   // STMTS → STMT STMTSC
   preParse("stmts");
 
@@ -664,44 +524,33 @@ void parseStmts()
   parseStmtsc();
 }
 
-void parseStmtsc()
-{
+void parseStmtsc() {
   // STMTSC → ; STMTS
   // STMTSC → ε
   preParse("stmtsc");
 
-  if (look_ahead->type == TOKEN_SEMICOLON)
-  {
-    match(makeToken(TOKEN_SEMICOLON, ";", 1, -1));
+  if (match(TOKEN_SEMICOLON, ";")) {
     parseStmts();
-  }
-  else
-  {
     return;
   }
+
+  return;
 }
 
-bool isInFollowSetForStmt()
-{
-  switch (look_ahead->type)
-  {
+bool isInFollowSetForStmt() {
+  switch (look_ahead->type) {
   case TOKEN_DOT:
   case TOKEN_SEMICOLON:
     return true;
-
   case TOKEN_KEYWORD:
-    return isKeyword("fed", 3) ||
-           isKeyword("fi", 2) ||
-           isKeyword("od", 2) ||
+    return isKeyword("fed", 3) || isKeyword("fi", 2) || isKeyword("od", 2) ||
            isKeyword("else", 4);
-
   default:
     return false;
   }
 }
 
-void parseStmt()
-{
+void parseStmt() {
   // STMT → VAR D = EXPR
   // STMT → if BEXPR then STMTS STMTC
   // STMT → while BEXPR do STMTS od
@@ -710,18 +559,16 @@ void parseStmt()
   // STMT →  ε
   preParse("stmt");
 
-  if (look_ahead->type == TOKEN_ID)
-  {
+  if (look_ahead->type == TOKEN_ID) {
     char *variableName = parseVar();
 
     SymbolTableEntry *variable = D(variableName);
-    if (!variable)
-    {
-      printf("Undeclared variable %s at line number %d\n", variableName, look_ahead->line);
+    if (!variable) {
+      printf("Undeclared variable %s at line number %d\n", variableName,
+             look_ahead->line);
     }
 
-    if (!match(makeToken(TOKEN_ASSIGN_OP, "=", 1, -1)))
-    {
+    if (!match(TOKEN_ASSIGN_OP, "=")) {
       handleParseError("Expected '=' for assignment", isInFollowSetForStmt);
       return;
     }
@@ -730,143 +577,120 @@ void parseStmt()
     DataType rightType = parseExpr();
 
     // Type checking: Ensure LHS (variable) type matches RHS (expression) type
-    if (variable && variable->returnType != rightType)
-    {
+    if (variable && variable->returnType != rightType) {
       printf("Semantic Error: Type mismatch in assignment at line %d. "
-             "Variable '%s' is of type '%s', but assigned expression of type '%s'.\n",
+             "Variable '%s' is of type '%s', but assigned expression of type "
+             "'%s'.\n",
              look_ahead->line, variableName,
              dataTypeToString(variable->returnType),
              dataTypeToString(rightType));
     }
-  }
-  else if (isKeyword("if", 2))
-  {
-    match(makeToken(TOKEN_KEYWORD, "if", 2, -1));
+  } else if (isKeyword("if", 2)) {
+    match(TOKEN_KEYWORD, "if");
     parseBexpr();
 
-    if (!match(makeToken(TOKEN_KEYWORD, "then", 4, -1)))
-    {
-      handleParseError("Missing 'then' after 'if' statement", isInFollowSetForStmt);
+    if (!match(TOKEN_KEYWORD, "then")) {
+      handleParseError("Missing 'then' after 'if' statement",
+                       isInFollowSetForStmt);
       return;
     }
 
     parseStmts();
     parseStmtc();
-  }
-  else if (isKeyword("while", 5))
-  {
-    match(makeToken(TOKEN_KEYWORD, "while", 5, -1));
+  } else if (match(TOKEN_KEYWORD, "while")) {
     parseBexpr();
 
-    if (!match(makeToken(TOKEN_KEYWORD, "do", 2, -1)))
-    {
-      handleParseError("Missing 'do' after 'while' statement", isInFollowSetForStmt);
+    if (!match(TOKEN_KEYWORD, "do")) {
+      handleParseError("Missing 'do' after 'while' statement",
+                       isInFollowSetForStmt);
       return;
     }
 
     parseStmts();
 
-    if (!match(makeToken(TOKEN_KEYWORD, "od", 2, -1)))
-    {
-      handleParseError("Expected 'od' at the end of while loop", isInFollowSetForStmt);
+    if (!match(TOKEN_KEYWORD, "od")) {
+      handleParseError("Expected 'od' at the end of while loop",
+                       isInFollowSetForStmt);
       return;
     }
-  }
-  else if (isKeyword("print", 5))
-  {
-    match(makeToken(TOKEN_KEYWORD, "print", 5, -1));
+  } else if (match(TOKEN_KEYWORD, "print")) {
     parseExpr();
-  }
-  else if (isKeyword("return", 6))
-  {
-    match(makeToken(TOKEN_KEYWORD, "return", 6, -1));
+  } else if (match(TOKEN_KEYWORD, "return")) {
     DataType returnType = parseExpr();
 
-    // here need to compare the return value of function scope with the evaluate expr return type
+    // Compare the return value with function return type
     SymbolTableEntry *functionEntry = getFunctionEntry();
 
-    if (returnType != functionEntry->returnType)
-    {
-
-      printf("Type error: Function declared as %d but returning %d\n", functionEntry->returnType, returnType);
+    if (returnType != functionEntry->returnType) {
+      printf("Type error: Function declared as %d but returning %d\n",
+             functionEntry->returnType, returnType);
     }
-  }
-  else
-  {
+  } else {
     return;
   }
 }
 
-void parseStmtc()
-{
+void parseStmtc() {
   // STMTC → fi
   // STMTC → else STMTS fi
   preParse("stmtc");
 
-  if (isKeyword("fi", 2))
-  {
-    match(makeToken(TOKEN_KEYWORD, "fi", 2, -1));
-  }
-  else if (isKeyword("else", 4))
-  {
-    match(makeToken(TOKEN_KEYWORD, "else", 4, -1));
-
-    parseStmts();
-
-    if (!match(makeToken(TOKEN_KEYWORD, "fi", 2, -1)))
-    {
-      handleParseError("Statement does not end with 'fi'", isInFollowSetForStmt);
-      return;
-    }
-  }
-  else
-  {
-    handleParseError("Expected 'fi' or 'else' for the end of statement", isInFollowSetForStmt);
+  if (match(TOKEN_KEYWORD, "fi")) {
     return;
   }
+
+  if (match(TOKEN_KEYWORD, "else")) {
+    parseStmts();
+
+    if (!match(TOKEN_KEYWORD, "fi")) {
+      handleParseError("Statement does not end with 'fi'",
+                       isInFollowSetForStmt);
+      return;
+    }
+
+    return;
+  }
+
+  handleParseError("Expected 'fi' or 'else' for the end of statement",
+                   isInFollowSetForStmt);
+  return;
 }
 
-DataType parseExpr()
-{
+DataType parseExpr() {
   // EXPR → TERM EXPRC
   preParse("expr");
 
-  DataType leftType = parseTerm(); // leftType = get data type from term
-  return parseExprc(leftType);     // Pass leftType to parseExprc for further evaluation
+  DataType leftType = parseTerm();
+  return parseExprc(leftType);
 }
 
-DataType parseExprc(DataType leftType)
-{
+DataType parseExprc(DataType leftType) {
   // EXPRC → + TERM EXPRC
   // EXPRC → - TERM EXPRC
   // EXPRC → ε
   preParse("exprc");
 
-  if (look_ahead->type == TOKEN_ADD || look_ahead->type == TOKEN_SUB)
-  {
+  if (look_ahead->type == TOKEN_ADD || look_ahead->type == TOKEN_SUB) {
     Token *opToken = look_ahead;
-    match(makeToken(look_ahead->type, look_ahead->lexeme, 1, -1));
+    match(look_ahead->type, look_ahead->lexeme);
 
     DataType rightType = parseTerm();
 
-    if (leftType != rightType)
-    {
-      printf("Semantic Error: Type mismatch in arithmetic operation '%s' at line %d. "
+    if (leftType != rightType) {
+      printf("Semantic Error: Type mismatch in arithmetic operation '%s' at "
+             "line %d. "
              "Left operand is '%s', but right operand is '%s'.\n",
-             opToken->lexeme, opToken->line,
-             dataTypeToString(leftType), dataTypeToString(rightType));
+             opToken->lexeme, opToken->line, dataTypeToString(leftType),
+             dataTypeToString(rightType));
     }
 
     return parseExprc(leftType);
   }
-  else
-  {
-    return leftType;
-  }
+
+  return leftType;
 }
 
-DataType parseTerm()
-{
+DataType parseTerm() {
   // TERM → FACTOR TERMC
   preParse("term");
 
@@ -874,8 +698,7 @@ DataType parseTerm()
   return parseTermc(leftType);
 }
 
-DataType parseTermc(DataType leftType)
-{
+DataType parseTermc(DataType leftType) {
   // TERMC → * FACTOR TERMC
   // TERMC → / FACTOR TERMC
   // TERMC → % FACTOR TERMC
@@ -883,34 +706,30 @@ DataType parseTermc(DataType leftType)
 
   preParse("termc");
 
-  if (look_ahead->type == TOKEN_MUL || look_ahead->type == TOKEN_DIV || look_ahead->type == TOKEN_MOD)
-  {
+  if (look_ahead->type == TOKEN_MUL || look_ahead->type == TOKEN_DIV ||
+      look_ahead->type == TOKEN_MOD) {
     Token opToken = *look_ahead;
-    match(makeToken(look_ahead->type, look_ahead->lexeme, 1, -1));
+    match(look_ahead->type, look_ahead->lexeme);
 
     DataType rightType = parseFactor();
 
-    if (leftType != rightType)
-    {
-      printf("Semantic Error: Type mismatch in arithmetic operation '%s' at line %d. "
+    if (leftType != rightType) {
+      printf("Semantic Error: Type mismatch in arithmetic operation '%s' at "
+             "line %d. "
              "Left operand is '%s', but right operand is '%s'.\n",
-             opToken.lexeme, opToken.line,
-             dataTypeToString(leftType), dataTypeToString(rightType));
+             opToken.lexeme, opToken.line, dataTypeToString(leftType),
+             dataTypeToString(rightType));
       return ERROR;
     }
 
     return parseTermc(leftType);
   }
-  else
-  {
-    return leftType;
-  }
+
+  return leftType;
 }
 
-bool isInFollowSetForFactor()
-{
-  switch (look_ahead->type)
-  {
+bool isInFollowSetForFactor() {
+  switch (look_ahead->type) {
   case TOKEN_DOT:
   case TOKEN_SEMICOLON:
   case TOKEN_RIGHT_PAREN:
@@ -930,9 +749,7 @@ bool isInFollowSetForFactor()
     return true;
 
   case TOKEN_KEYWORD:
-    return isKeyword("fed", 3) ||
-           isKeyword("fi", 2) ||
-           isKeyword("od", 2) ||
+    return isKeyword("fed", 3) || isKeyword("fi", 2) || isKeyword("od", 2) ||
            isKeyword("else", 4);
 
   default:
@@ -940,77 +757,70 @@ bool isInFollowSetForFactor()
   }
 }
 
-DataType parseFactor()
-{
+DataType parseFactor() {
   // FACTOR → ID D FACTORC
   // FACTOR → NUMBER
   // FACTOR → (EXPR)
   preParse("factor");
 
-  if (look_ahead->type == TOKEN_ID)
-  {
+  if (look_ahead->type == TOKEN_ID) {
     // Look up the identifier in symbol table
     // If found, return the symbol's return type
     SymbolTableEntry *symbol = D(look_ahead->lexeme);
-    if (!symbol)
-    {
-      printf("Undeclared variable %s at line number %d\n", look_ahead->lexeme, look_ahead->line);
+    if (!symbol) {
+      printf("Undeclared variable %s at line number %d\n", look_ahead->lexeme,
+             look_ahead->line);
       return ERROR;
     }
 
-    match(makeToken(TOKEN_ID, look_ahead->lexeme, look_ahead->length, -1));
+    match(TOKEN_ID, look_ahead->lexeme);
     parseFactorc(symbol);
 
     return symbol->returnType;
   }
-  else if (isNumber(look_ahead->type))
-  {
+
+  if (isNumber(look_ahead->type)) {
     DataType numberType = look_ahead->type == TOKEN_INT ? INT : DOUBLE;
 
-    match(makeToken(look_ahead->type, look_ahead->lexeme, look_ahead->length, -1));
+    match(look_ahead->type, look_ahead->lexeme);
 
     return numberType;
   }
-  else if (look_ahead->type == TOKEN_LEFT_PAREN)
-  {
-    match(makeToken(TOKEN_LEFT_PAREN, "(", 1, -1));
 
+  if (match(TOKEN_LEFT_PAREN, "(")) {
     DataType exprType = parseExpr();
 
-    if (exprType == ERROR)
-    {
+    if (exprType == ERROR) {
       puts("Semantic Error");
     }
 
-    if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
-    {
+    if (!match(TOKEN_RIGHT_PAREN, ")")) {
       handleParseError("Expected ')'", isInFollowSetForFactor);
       return ERROR;
     }
 
     return exprType;
   }
-  else
-  {
-    handleParseError("Expected an identifier, number, or '(' to start an expression", isInFollowSetForFactor);
-    return ERROR;
-  }
+
+  handleParseError(
+      "Expected an identifier, number, or '(' to start an expression",
+      isInFollowSetForFactor);
+  return ERROR;
 }
 
-void parseFactorc(SymbolTableEntry *symbol)
-{
+void parseFactorc(SymbolTableEntry *symbol) {
   // FACTORC → VARC
   // FACTORC → ( EXPRS )
   preParse("factorc");
 
-  if (look_ahead->type == TOKEN_LEFT_PAREN)
-  {
-    if (symbol->symbolType != FUNCTION)
-    {
-      printf("Semantic Error: '%s' is not a function but is used as one (line %d).\n", symbol->lexeme, look_ahead->line);
+  if (look_ahead->type == TOKEN_LEFT_PAREN) {
+    if (symbol->symbolType != FUNCTION) {
+      printf("Semantic Error: '%s' is not a function but is used as one (line "
+             "%d).\n",
+             symbol->lexeme, look_ahead->line);
     }
 
-    match(makeToken(TOKEN_LEFT_PAREN, "(", 1, -1));
+    match(TOKEN_LEFT_PAREN, "(");
 
     // Parse argument expressions and track types
     parseExprs();
@@ -1019,28 +829,25 @@ void parseFactorc(SymbolTableEntry *symbol)
     SymbolTableEntry *functionEntry = lookupSymbol(symbol->lexeme);
 
     // Check argument count mismatch
-    if (argCount != functionEntry->parameterCount)
-    {
-      if (argCount > functionEntry->parameterCount)
-      {
-        printf("Semantic Error: Too many arguments for function '%s' (line %d). Expected %d, but got %d.\n",
+    if (argCount != functionEntry->parameterCount) {
+      if (argCount > functionEntry->parameterCount) {
+        printf("Semantic Error: Too many arguments for function '%s' (line "
+               "%d). Expected %d, but got %d.\n",
                functionEntry->lexeme, look_ahead->line,
                functionEntry->parameterCount, argCount);
-      }
-      else
-      {
-        printf("Semantic Error: Too few arguments for function '%s' (line %d). Expected %d, but got %d.\n",
+      } else {
+        printf("Semantic Error: Too few arguments for function '%s' (line %d). "
+               "Expected %d, but got %d.\n",
                functionEntry->lexeme, look_ahead->line,
                functionEntry->parameterCount, argCount);
       }
     }
 
     // Check argument type mismatches
-    for (int i = 0; i < functionEntry->parameterCount; i++)
-    {
-      if (functionEntry->parameters[i] != tempArgTypeList[i])
-      {
-        printf("Semantic Error: Argument %d of function '%s' (line %d) has incorrect type. Expected '%s', but got '%s'.\n",
+    for (int i = 0; i < functionEntry->parameterCount; i++) {
+      if (functionEntry->parameters[i] != tempArgTypeList[i]) {
+        printf("Semantic Error: Argument %d of function '%s' (line %d) has "
+               "incorrect type. Expected '%s', but got '%s'.\n",
                i + 1, functionEntry->lexeme, look_ahead->line,
                dataTypeToString(functionEntry->parameters[i]),
                dataTypeToString(tempArgTypeList[i]));
@@ -1049,30 +856,26 @@ void parseFactorc(SymbolTableEntry *symbol)
 
     resetArgCount();
 
-    if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
-    {
-      handleParseError("Expected closing parenthesis ')'", isInFollowSetForFactor);
+    if (!match(TOKEN_RIGHT_PAREN, ")")) {
+      handleParseError("Expected closing parenthesis ')'",
+                       isInFollowSetForFactor);
       return;
     }
+
+    return;
   }
-  else
-  {
-    parseVarc();
-  }
+
+  parseVarc();
 }
 
-void parseExprs()
-{
+void parseExprs() {
   // EXPRS → EXPR EXPRSC
   // EXPRS → ε
   preParse("exprs");
 
-  if (
-      look_ahead->type == TOKEN_ID ||
-      look_ahead->type == TOKEN_INT ||
+  if (look_ahead->type == TOKEN_ID || look_ahead->type == TOKEN_INT ||
       look_ahead->type == TOKEN_DOUBLE ||
-      look_ahead->type == TOKEN_LEFT_PAREN)
-  {
+      look_ahead->type == TOKEN_LEFT_PAREN) {
     // check for previous
     // check the argument type
     DataType type = parseExpr();
@@ -1080,32 +883,27 @@ void parseExprs()
     // check if it matched the arg type
     // increment temp arg count
     parseExprsc();
-  }
-  else
-  {
+
     return;
   }
+
+  return;
 }
 
-void parseExprsc()
-{
+void parseExprsc() {
   // EXPRSC → , EXPRS
   // EXPRSC → ε
   preParse("exprsc");
 
-  if (look_ahead->type == TOKEN_COMMA)
-  {
-    match(makeToken(TOKEN_COMMA, ",", 1, -1));
+  if (match(TOKEN_COMMA, ",")) {
     parseExprs();
-  }
-  else
-  {
     return;
   }
+
+  return;
 }
 
-void parseBexpr()
-{
+void parseBexpr() {
   // BEXPR → BTERM BEXPRC
   preParse("bexpr");
 
@@ -1113,26 +911,22 @@ void parseBexpr()
   parseBexprc();
 }
 
-void parseBexprc()
-{
+void parseBexprc() {
   // BEXPRC → or BTERM BEXPRC
   // BEXPRC → ε
   preParse("bexprc");
 
-  if (isKeyword("or", 2))
-  {
-    match(makeToken(TOKEN_KEYWORD, "or", 2, -1));
+  if (match(TOKEN_KEYWORD, "or")) {
     parseBterm();
     parseBexprc();
-  }
-  else
-  {
+
     return;
   }
+
+  return;
 }
 
-void parseBterm()
-{
+void parseBterm() {
   // BTERM → BFACTOR BTERMC
   preParse("bterm");
 
@@ -1140,96 +934,79 @@ void parseBterm()
   parseBtermc();
 }
 
-void parseBtermc()
-{
+void parseBtermc() {
   // BTERMC → and BFACTOR BTERMC
   // BTERMC → ε
   preParse("btermc");
 
-  if (isKeyword("and", 3))
-  {
-    match(makeToken(TOKEN_KEYWORD, "and", 3, -1));
+  if (match(TOKEN_KEYWORD, "and")) {
     parseBfactor();
     parseBtermc();
-  }
-  else
-  {
+
     return;
   }
+
+  return;
 }
 
-bool isInFollowSetForBfactor()
-{
-  return isKeyword("then", 4) ||
-         isKeyword("do", 2) ||
-         isKeyword("or", 2) ||
+bool isInFollowSetForBfactor() {
+  return isKeyword("then", 4) || isKeyword("do", 2) || isKeyword("or", 2) ||
          isKeyword("and", 3);
 }
 
-void parseBfactor()
-{
+void parseBfactor() {
   // BFACTOR → not bfactor
   // BFACTOR → (bexpr)
   // BFACTOR → (expr comp expr)
   preParse("bfactor");
 
-  // UNARY logical operator
-  if (isKeyword("not", 3))
-  {
-    match(makeToken(TOKEN_KEYWORD, "not", 3, -1));
+  if (match(TOKEN_KEYWORD, "not")) {
     parseBfactor();
+    return;
   }
-  else if (look_ahead->type == TOKEN_LEFT_PAREN)
-  {
-    match(makeToken(TOKEN_LEFT_PAREN, "(", 1, -1));
 
-    if (isComparison(nextToken()->type))
-    {
+  if (match(TOKEN_LEFT_PAREN, "(")) {
+    if (isComparison(nextToken()->type)) {
       // BFACTOR → (expr comp expr)
       DataType leftType = parseExpr();
       parseComp();
       DataType rightType = parseExpr();
 
-      if (leftType != rightType)
-      {
-        printf("Type error: Type mismatch in comparison at line %d\n", look_ahead->line);
+      if (leftType != rightType) {
+        printf("Type error: Type mismatch in comparison at line %d\n",
+               look_ahead->line);
       }
 
-      if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
-      {
-        handleParseError("Expected closing parenthesis ')'", isInFollowSetForBfactor);
+      if (!match(TOKEN_RIGHT_PAREN, ")")) {
+        handleParseError("Expected closing parenthesis ')'",
+                         isInFollowSetForBfactor);
         return;
       }
-    }
-    else
-    {
+    } else {
       // BFACTOR → (bexpr)
       parseBexpr();
 
-      if (!match(makeToken(TOKEN_RIGHT_PAREN, ")", 1, -1)))
-      {
-        handleParseError("Expected closing parenthesis ')'", isInFollowSetForBfactor);
+      if (!match(TOKEN_RIGHT_PAREN, ")")) {
+        handleParseError("Expected closing parenthesis ')'",
+                         isInFollowSetForBfactor);
         return;
       }
     }
-  }
-  else
-  {
-    handleParseError("Expected 'not' or '(' for boolean factor", isInFollowSetForBfactor);
+
     return;
   }
+
+  handleParseError("Expected 'not' or '(' for boolean factor",
+                   isInFollowSetForBfactor);
+  return;
 }
 
-bool isInFollowSetForComp()
-{
-  return look_ahead->type == TOKEN_LEFT_PAREN ||
-         look_ahead->type == TOKEN_ID ||
-         look_ahead->type == TOKEN_INT ||
-         look_ahead->type == TOKEN_DOUBLE;
+bool isInFollowSetForComp() {
+  return look_ahead->type == TOKEN_LEFT_PAREN || look_ahead->type == TOKEN_ID ||
+         look_ahead->type == TOKEN_INT || look_ahead->type == TOKEN_DOUBLE;
 }
 
-void parseComp()
-{
+void parseComp() {
   // COMP → <
   // COMP → >
   // COMP → ==
@@ -1238,60 +1015,52 @@ void parseComp()
   // COMP → <>
   preParse("comp");
 
-  if (isComparison(look_ahead->type))
-  {
-    match(*look_ahead);
+  if (isComparison(look_ahead->type)) {
+    match(look_ahead->type, look_ahead->lexeme);
+    return;
   }
-  else
-  {
-    handleParseError("Expected a comparison operator", isInFollowSetForComp);
-  }
+
+  handleParseError("Expected a comparison operator", isInFollowSetForComp);
+  return;
 }
 
-bool isInFollowSetForVar()
-{
+bool isInFollowSetForVar() {
   return look_ahead->type == TOKEN_SEMICOLON ||
          look_ahead->type == TOKEN_RIGHT_PAREN ||
-         look_ahead->type == TOKEN_COMMA ||
-         look_ahead->type == TOKEN_ASSIGN_OP;
+         look_ahead->type == TOKEN_COMMA || look_ahead->type == TOKEN_ASSIGN_OP;
 }
 
-char *parseVar()
-{
+char *parseVar() {
   // VAR → ID VARC
   preParse("var");
 
-  if (look_ahead->type == TOKEN_ID)
-  {
+  if (look_ahead->type == TOKEN_ID) {
     char *lexeme = look_ahead->lexeme;
-    match(makeToken(TOKEN_ID, lexeme, look_ahead->length, -1));
+    match(TOKEN_ID, lexeme);
     parseVarc();
+
     return lexeme;
   }
-  else
-  {
-    handleParseError("Expected an identifier", isInFollowSetForVar);
-    return NULL;
-  }
+
+  handleParseError("Expected an identifier", isInFollowSetForVar);
+  return NULL;
 }
 
-void parseVarc()
-{
+void parseVarc() {
   // VARC → [ EXPR ]
   // VARC → ε
 
   preParse("varc");
 
-  if (look_ahead->type == TOKEN_LEFT_SQUARE_PAREN)
-  {
-    match(makeToken(TOKEN_LEFT_SQUARE_PAREN, "[", 1, -1));
+  if (look_ahead->type == TOKEN_LEFT_SQUARE_PAREN) {
+    match(TOKEN_LEFT_SQUARE_PAREN, "[");
     parseExpr();
-    match(makeToken(TOKEN_LEFT_SQUARE_PAREN, "]", 1, -1));
-  }
-  else
-  {
+    match(TOKEN_LEFT_SQUARE_PAREN, "]");
+
     return;
   }
+
+  return;
 }
 
 //< Parse Functions

@@ -1,10 +1,10 @@
 // lexer.c: the main component to handle lexical analysis
 
+#include "lexer.h"
+#include "../common/file.h"
+#include "../common/string.h"
 #include <fcntl.h>  // For open() flags
 #include <unistd.h> // For write() and close()
-#include "lexer.h"
-#include "../common/string.h"
-#include "../common/file.h"
 
 /**
  * stateToToken
@@ -45,14 +45,12 @@ static const TokenType stateToToken[] = {
  * e.g. "or", "and", "not"...
  */
 static const char *keywords[] = {
-    "or", "and", "not", "if", "then", "else", "fi",
-    "while", "do", "od", "def", "fed", "return",
-    "print", "int", "double"};
+    "or", "and", "not", "if",  "then",   "else",  "fi",  "while",
+    "do", "od",  "def", "fed", "return", "print", "int", "double"};
 
 static const int keywordsCount = sizeof(keywords) / sizeof(keywords[0]);
 
-void initializeLexer(Lexer *lexer, int *inputFd, int *transitionTableFd)
-{
+void initializeLexer(Lexer *lexer, int *inputFd, int *transitionTableFd) {
   // Initialize lexer state and buffer-related variables
   lexer->currentState = STATE_START;
   lexer->newLineCount = 0;
@@ -70,15 +68,14 @@ void initializeLexer(Lexer *lexer, int *inputFd, int *transitionTableFd)
   initTransitionTable(lexer->transitionTable, transitionTableFd);
 }
 
-void handleError(Lexer *lexer, char character)
-{
+void handleError(Lexer *lexer, char character) {
   // Reset the state to start lexing from the invalid character
   lexer->currentState = STATE_START;
-  TransitionState state = lexer->transitionTable[lexer->currentState][character];
+  TransitionState state =
+      lexer->transitionTable[lexer->currentState][character];
 
   // If initial character is valid, then undo the col and forward pointer
-  if (state != STATE_ERROR)
-  {
+  if (state != STATE_ERROR) {
     lexer->scanner.col--;     // Undo the column increment
     lexer->scanner.forward--; // Undo the last forward movement
   }
@@ -87,8 +84,7 @@ void handleError(Lexer *lexer, char character)
   lexer->scanner.lexemeBegin = lexer->scanner.forward;
 }
 
-Token getNextToken(TransitionState state, Scanner *scanner)
-{
+Token getNextToken(TransitionState state, Scanner *scanner) {
   // Map the state to the corresponding token type
   TokenType tokenType = stateToToken[state];
   char *startCharacter = scanner->lexemeBegin;
@@ -97,22 +93,19 @@ Token getNextToken(TransitionState state, Scanner *scanner)
 
   // Get the token's lexeme
   char value[tokenLength + 1];
-  for (int i = 0; i < tokenLength; i++)
-  {
+  for (int i = 0; i < tokenLength; i++) {
     value[i] = startCharacter[i];
   }
   value[tokenLength] = '\0';
 
-  // If the token is a keyword, check if the lexeme matches any predefined keywords
-  if (tokenType == TOKEN_KEYWORD)
-  {
+  // If the token is a keyword, check if the lexeme matches any predefined
+  // keywords
+  if (tokenType == TOKEN_KEYWORD) {
     bool isKeyword = false;
 
     // Check if the lexeme matches any keyword
-    for (int i = 0; i < keywordsCount; i++)
-    {
-      if (_strcmp(value, keywords[i]) == 0)
-      {
+    for (int i = 0; i < keywordsCount; i++) {
+      if (_strcmp(value, keywords[i]) == 0) {
         isKeyword = true;
       }
     }
@@ -124,8 +117,7 @@ Token getNextToken(TransitionState state, Scanner *scanner)
   return makeToken(tokenType, startCharacter, tokenLength, tokenLine);
 }
 
-void processToken(Lexer *lexer, TransitionState state)
-{
+void processToken(Lexer *lexer, TransitionState state) {
   // Undo column and forward before processing the token
   lexer->scanner.col--;
   lexer->scanner.forward--;
@@ -134,8 +126,7 @@ void processToken(Lexer *lexer, TransitionState state)
   Token token = getNextToken(state, &lexer->scanner);
 
   // Ignore whitespace
-  if (token.type == TOKEN_WHITESPACE)
-  {
+  if (token.type == TOKEN_WHITESPACE) {
     return;
   }
 
@@ -143,38 +134,36 @@ void processToken(Lexer *lexer, TransitionState state)
   tokenCount++;
 }
 
-Token *lexicalAnalysis(int *inputFd, int *transitionTableFd)
-{
+Token *lexicalAnalysis(int *inputFd, int *transitionTableFd) {
   // Remove the created files first
   remove("lexical_analysis_errors.txt");
   remove("token_lexeme_pairs.txt");
 
   //> Output: tokens and errors log
-  char errorBuffer[BUFFER_SIZE + 1]; // Holds error messages before writing to error file
-  errorBuffer[BUFFER_SIZE] = '\0';   // Null character
-  size_t errorBufferIndex = 0;       // Track the size of error buffer
+  char errorBuffer[BUFFER_SIZE +
+                   1]; // Holds error messages before writing to error file
+  errorBuffer[BUFFER_SIZE] = '\0'; // Null character
+  size_t errorBufferIndex = 0;     // Track the size of error buffer
 
-  char tokenFileBuffer[BUFFER_SIZE + 1]; // Holds token info before writing to token file
-  tokenFileBuffer[BUFFER_SIZE] = '\0';   // Null character
+  char tokenFileBuffer[BUFFER_SIZE +
+                       1]; // Holds token info before writing to token file
+  tokenFileBuffer[BUFFER_SIZE] = '\0'; // Null character
   size_t tokenFileBufferIndex = 0;
   //< Output
 
   Lexer lexer;
   initializeLexer(&lexer, inputFd, transitionTableFd);
 
-  while (1)
-  {
+  while (1) {
     char character = getNextChar(&lexer.db, &lexer.scanner);
 
     // Handle end of file (EOF)
-    if (character == EOF)
-    {
+    if (character == EOF) {
       // Process the last token before finishing
       Token token = getNextToken(lexer.currentState, &lexer.scanner);
 
       // Token validation, possibly 0
-      if (token.type <= 0 || token.type == TOKEN_WHITESPACE)
-      {
+      if (token.type <= 0 || token.type == TOKEN_WHITESPACE) {
         break;
       }
 
@@ -191,13 +180,15 @@ Token *lexicalAnalysis(int *inputFd, int *transitionTableFd)
     bool isErrorFound = lexer.currentState == STATE_ERROR;
 
     // Handle error before processing token
-    if (isErrorFound)
-    {
+    if (isErrorFound) {
       // Write error message
       char errorMessage[BUFFER_SIZE];
-      sprintf(errorMessage, "Lexical Error: Unexpected character '%c' at line %d, column %d!\n",
-              character, lexer.scanner.line, lexer.scanner.col);
-      appendToBuffer(errorBuffer, &errorBufferIndex, errorMessage, "lexical_analysis_errors.txt");
+      sprintf(
+          errorMessage,
+          "Lexical Error: Unexpected character '%c' at line %d, column %d!\n",
+          character, lexer.scanner.line, lexer.scanner.col);
+      appendToBuffer(errorBuffer, &errorBufferIndex, errorMessage,
+                     "lexical_analysis_errors.txt");
 
       handleError(&lexer, character);
 
@@ -205,32 +196,28 @@ Token *lexicalAnalysis(int *inputFd, int *transitionTableFd)
     }
 
     // Track character count only if we are still in a token
-    if (!isTokenFound)
-    {
+    if (!isTokenFound) {
       lexer.characterCount++;
 
       // Handle new line detection
-      if (character == '\n')
-      {
+      if (character == '\n') {
         lexer.newLineCount++;
         lexer.hasNewLine = true; // Remember that a newline appeared
       }
     }
 
     // Process a token if a valid token is found
-    if (isTokenFound)
-    {
+    if (isTokenFound) {
       processToken(&lexer, prevState);
 
       // Prepare for the next token by updating lexemeBegin
       lexer.scanner.lexemeBegin = lexer.scanner.forward;
 
       // Reset line and column if a newline was encountered
-      if (lexer.hasNewLine)
-      {
+      if (lexer.hasNewLine) {
         lexer.scanner.line = lexer.newLineCount + 1; // 1-based index for lines
-        lexer.scanner.col = 0;                       // Reset column to 0 after newline
-        lexer.hasNewLine = false;                    // Reset newline flag
+        lexer.scanner.col = 0;    // Reset column to 0 after newline
+        lexer.hasNewLine = false; // Reset newline flag
       }
     }
   }
@@ -238,31 +225,27 @@ Token *lexicalAnalysis(int *inputFd, int *transitionTableFd)
   // Handle Token file
   char tokenMessage[BUFFER_SIZE];
 
-  for (int i = 0; i < tokenCount; i++)
-  {
+  for (int i = 0; i < tokenCount; i++) {
     Token token = tokens[i];
 
     // If token required attribute value
-    if (token.type == TOKEN_KEYWORD || token.type == TOKEN_ID)
-    {
+    if (token.type == TOKEN_KEYWORD || token.type == TOKEN_ID) {
       sprintf(tokenMessage, "%d %s\n", token.type, token.lexeme);
-    }
-    else
-    {
+    } else {
       sprintf(tokenMessage, "%d\n", token.type);
     }
 
-    appendToBuffer(tokenFileBuffer, &tokenFileBufferIndex, tokenMessage, "token_lexeme_pairs.txt");
+    appendToBuffer(tokenFileBuffer, &tokenFileBufferIndex, tokenMessage,
+                   "token_lexeme_pairs.txt");
   }
 
   // Flush buffer contents to the file at the end of lexical analysis
-  flushBufferToFile("lexical_analysis_errors.txt", errorBuffer, &errorBufferIndex);
-  flushBufferToFile("token_lexeme_pairs.txt", tokenFileBuffer, &tokenFileBufferIndex);
+  flushBufferToFile("lexical_analysis_errors.txt", errorBuffer,
+                    &errorBufferIndex);
+  flushBufferToFile("token_lexeme_pairs.txt", tokenFileBuffer,
+                    &tokenFileBufferIndex);
 
   return tokens;
 }
 
-int getTokenCount()
-{
-  return tokenCount;
-}
+int getTokenCount() { return tokenCount; }

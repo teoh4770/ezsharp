@@ -4,9 +4,9 @@
 #define TT_ROWS 29
 #define TT_COLS 128
 
-//> transition-state: 29 states, from index 0 to 28, following the transition table
-typedef enum
-{
+//> transition-state: 29 states, from index 0 to 28, following the transition
+// table
+typedef enum {
   STATE_ERROR = -1,
   STATE_START = 0,
   STATE_LT = 1,

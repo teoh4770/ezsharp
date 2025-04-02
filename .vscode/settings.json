@@ -6,6 +6,7 @@
     "scanner.h": "c",
     "__locale": "c",
     "string": "c",
-    "string_view": "c"
+    "string_view": "c",
+    "fcntl.h": "c"
   }
 }

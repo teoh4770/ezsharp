@@ -1,13 +1,12 @@
 #ifndef SCANNER_H
 #define SCANNER_H
 
-#include <stdio.h>
 #include "buffer.h"
 #include "token.h"
 #include "transition_table.h"
+#include <stdio.h>
 
-typedef struct
-{
+typedef struct {
   char *lexemeBegin;
   char *forward;
   int line;

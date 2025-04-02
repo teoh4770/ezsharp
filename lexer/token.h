@@ -1,8 +1,7 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-typedef enum
-{
+typedef enum {
   TOKEN_ADD = 0,
   TOKEN_SUB = 1,
   TOKEN_MUL = 2,
@@ -30,13 +29,12 @@ typedef enum
   TOKEN_DOLLAR = 24
 } TokenType;
 
-typedef struct
-{
+typedef struct {
   TokenType type;
   char *start; // Start of lexeme
   int length;  // Size of lexeme
   int line;
-  char *lexeme; 
+  char *lexeme;
 } Token;
 
 Token makeToken(TokenType type, char *start, int length, int line);
