@@ -1,8 +1,11 @@
 #ifndef SEMANTIC_ANALYZER_H
 #define SEMANTIC_ANALYZER_H
 
-#define MAX_ENTRIES 100 // Adjust as needed
-#define MAX_SCOPES 2    // Adjust as needed
+// Adjust as needed
+#define MAX_ENTRIES 100
+#define MAX_SCOPES 2
+#define MAX_ARGS 10
+#define MAX_CALL_STACKS 100
 
 #include "../common/string.h"
 #include <stdbool.h>
@@ -13,9 +16,6 @@ typedef enum { INT, DOUBLE, ERROR } DataType;
 
 typedef enum { VARIABLE, FUNCTION } SymbolType;
 
-// Example:
-// SymbolTableEntry entry = { 10, "a", INT, VARIABLE, 0 };
-// SymbolTableEntry entry = { 12, "sum", INT, FUNCTION, 2 };
 typedef struct {
   int lineNumber;
   char lexeme[50];
@@ -25,14 +25,21 @@ typedef struct {
   DataType parameters[10];
 } SymbolTableEntry;
 
-// Example:
-// SymbolTable table
-// table.entries[table.entryCount++] = entry;
 typedef struct {
   char name[50];
   int entryCount;
   SymbolTableEntry entries[MAX_ENTRIES];
 } SymbolTable;
+
+typedef struct {
+  int argCount;
+  DataType argTypes[MAX_ARGS];
+} FunctionCallFrame;
+
+typedef struct {
+  FunctionCallFrame stack[MAX_CALL_STACKS];
+  int top;
+} FunctionCallStack;
 
 // Exported variables
 extern int scopeCount;
@@ -40,6 +47,18 @@ extern SymbolTable scopes[];
 
 extern char semanticErrorBuffer[];
 extern size_t semanticErrorBufferIndex;
+
+extern const char *TYPE_MISMATCH_ERROR;
+extern const char *ARGUMEMT_TYPE_MISMATCH_ERROR;
+extern const char *UNDECLARED_VARIABLE_ERROR;
+extern const char *ARG_COUNT_ERROR;
+
+extern DataType tempDeclarationReturnType; // For varlist only
+extern DataType tempArgTypeList[];
+extern SymbolTableEntry tempArgList[];
+extern int argCount;
+
+extern FunctionCallStack callStack;
 
 // Define the operations for symbol table stack
 // Add a new scope
@@ -55,8 +74,14 @@ SymbolTableEntry *lookupSymbol(const char *lexeme);
 // Look for the function symbol, starting from the very top, then bottom
 SymbolTableEntry *getFunctionEntry();
 
+// Nested Function calls
+void pushCallFrame();
+void popCallFrame();
+FunctionCallFrame *currentCallFrame();
+
 // Scope error handling
 void scopeError(const char *message);
+void semanticError(const char *message);
 
 // Debugging
 void printScope(SymbolTable *table);

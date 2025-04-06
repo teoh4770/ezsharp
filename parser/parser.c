@@ -1,6 +1,7 @@
 // parser.c: the main component to handle parsing
 
-#include <fcntl.h> // For open() flags
+#include <fcntl.h>  // For open() flags
+#include <stdarg.h> // For variable argument lists
 #include <stdio.h>
 #include <stdlib.h> // For free()
 #include <unistd.h> // For write() and close()
@@ -22,13 +23,6 @@ size_t syntaxErrorBufferIndex = 0;
 
 char symbolTableBuffer[BUFFER_SIZE + 1];
 size_t symbolTableBufferIndex = 0;
-
-// Semantic analysis global variables
-// For varlist only
-DataType tempDeclarationReturnType = INT;
-DataType tempArgTypeList[10];
-SymbolTableEntry tempArgList[10];
-int argCount = 0;
 
 //> Helper Functions
 void addEndToken(Token *tokens, int *tokenCount) {
@@ -68,12 +62,24 @@ void syntaxError(const char *expectedMessage) {
 }
 
 bool matchToken(Token current, Token target) {
+  puts("================");
+  puts("Look-ahead Token");
+  puts("================");
+  printToken(&current);
+
+  puts("============");
+  puts("Target Token");
+  puts("============");
+  printToken(&target);
+
   // Compare token type and lexeme
   if (current.type != target.type ||
       _strncmp(current.lexeme, target.lexeme, current.length) != 0) {
+    puts("-> Token Not Match\n");
     return false;
   }
 
+  puts("-> Token Match\n");
   return true;
 };
 
@@ -132,9 +138,82 @@ void C(SymbolType symbolType, DataType returnType, int lineNumber,
 }
 
 // Look up symbol when a variable is being reference
-SymbolTableEntry *D(const char *lexeme) { return lookupSymbol(lexeme); }
+SymbolTableEntry *D(const char *lexeme) {
+  SymbolTableEntry *variable = lookupSymbol(lexeme);
+
+  if (!variable) {
+    char semanticErrorMessage[BUFFER_SIZE + 1];
+    sprintf(semanticErrorMessage, "Undeclared variable %s at line number %d\n",
+            lexeme, look_ahead->line);
+
+    semanticError(semanticErrorMessage);
+  }
+
+  return variable;
+}
 
 void resetArgCount() { argCount = 0; }
+
+void handleFunctionCall(SymbolTableEntry *symbol) {
+  SymbolTableEntry *functionEntry = lookupSymbol(symbol->lexeme);
+  FunctionCallFrame *frame = currentCallFrame();
+
+  if (frame->argCount != functionEntry->parameterCount) {
+    char semanticErrorMessage[BUFFER_SIZE + 1];
+
+    if (frame->argCount > functionEntry->parameterCount) {
+      sprintf(semanticErrorMessage,
+              "Too many arguments for function '%s' (line "
+              "%d). Expected %d, but got %d.\n",
+              functionEntry->lexeme, look_ahead->line,
+              functionEntry->parameterCount, frame->argCount);
+    } else {
+      sprintf(semanticErrorMessage,
+              "Too few arguments for function '%s' (line %d). "
+              "Expected %d, but got %d.\n",
+              functionEntry->lexeme, look_ahead->line,
+              functionEntry->parameterCount, frame->argCount);
+    }
+
+    semanticError(semanticErrorMessage);
+  }
+
+  for (int i = 0; i < functionEntry->parameterCount; i++) {
+    if (frame->argTypes[i] != functionEntry->parameters[i]) {
+      char semanticErrorMessage[BUFFER_SIZE + 1];
+      sprintf(semanticErrorMessage,
+              "Argument %d of function '%s' (line %d) has incorrect type. "
+              "Expected '%s', but got '%s'.\n",
+              i + 1, functionEntry->lexeme, look_ahead->line,
+              dataTypeToString(functionEntry->parameters[i]),
+              dataTypeToString(frame->argTypes[i]));
+
+      semanticError(semanticErrorMessage);
+    }
+  }
+
+  resetArgCount();
+  popCallFrame();
+}
+
+/*
+logSemanticError(
+    "Type mismatch in assignment at line %d. "
+    "Variable '%s' is of type '%s', but assigned expression of type '%s'.",
+    look_ahead->line, variableName,
+    dataTypeToString(variable->returnType),
+    dataTypeToString(rightType));
+ */
+void logSemanticError(const char *format, ...) {
+  char semanticErrorMessage[BUFFER_SIZE + 1];
+  va_list args;
+
+  va_start(args, format);
+  vsnprintf(semanticErrorMessage, BUFFER_SIZE, format, args);
+  va_end(args);
+
+  semanticError(semanticErrorMessage);
+}
 
 //< Helper functions
 
@@ -286,13 +365,13 @@ void parseFn() {
     return;
   }
 
-  // C: Insert function symbol at global scope
-  // A: Insert function scope
-  // C: Insert argument symbol at function scope
+  // Insert function symbol at global scope
   C(FUNCTION, type, look_ahead->line, argCount, funcName);
 
+  // Insert function scope
   A(funcName);
 
+  // Insert argument symbol at function scope
   for (int i = 0; i < argCount; i++) {
     C(tempArgList[i].symbolType, tempArgList[i].returnType,
       tempArgList[i].lineNumber, 0, (tempArgList[i].lexeme));
@@ -324,8 +403,6 @@ void parseParams() {
 
     char *paramName = parseVar();
 
-    // ? Refactor
-    // Create symbol table entry for upcoming argument
     SymbolTableEntry entry;
     entry.parameterCount = 0;
     entry.symbolType = VARIABLE;
@@ -367,7 +444,6 @@ void parseParamsc() {
     DataType type = parseType();
     char *paramName = parseVar();
 
-    // ? Refactor
     SymbolTableEntry entry;
     entry.parameterCount = 0;
     entry.symbolType = VARIABLE;
@@ -563,10 +639,6 @@ void parseStmt() {
     char *variableName = parseVar();
 
     SymbolTableEntry *variable = D(variableName);
-    if (!variable) {
-      printf("Undeclared variable %s at line number %d\n", variableName,
-             look_ahead->line);
-    }
 
     if (!match(TOKEN_ASSIGN_OP, "=")) {
       handleParseError("Expected '=' for assignment", isInFollowSetForStmt);
@@ -578,12 +650,16 @@ void parseStmt() {
 
     // Type checking: Ensure LHS (variable) type matches RHS (expression) type
     if (variable && variable->returnType != rightType) {
-      printf("Semantic Error: Type mismatch in assignment at line %d. "
-             "Variable '%s' is of type '%s', but assigned expression of type "
-             "'%s'.\n",
-             look_ahead->line, variableName,
-             dataTypeToString(variable->returnType),
-             dataTypeToString(rightType));
+      char semanticErrorMessage[BUFFER_SIZE + 1];
+      sprintf(semanticErrorMessage,
+              "Type mismatch in assignment at line %d. "
+              "Variable '%s' is of type '%s', but assigned expression of type "
+              "'%s'.\n",
+              look_ahead->line, variableName,
+              dataTypeToString(variable->returnType),
+              dataTypeToString(rightType));
+
+      semanticError(semanticErrorMessage);
     }
   } else if (isKeyword("if", 2)) {
     match(TOKEN_KEYWORD, "if");
@@ -622,7 +698,7 @@ void parseStmt() {
     SymbolTableEntry *functionEntry = getFunctionEntry();
 
     if (returnType != functionEntry->returnType) {
-      printf("Type error: Function declared as %d but returning %d\n",
+      printf("Semantic error: Function declared as %d but returning %d\n",
              functionEntry->returnType, returnType);
     }
   } else {
@@ -677,11 +753,15 @@ DataType parseExprc(DataType leftType) {
     DataType rightType = parseTerm();
 
     if (leftType != rightType) {
-      printf("Semantic Error: Type mismatch in arithmetic operation '%s' at "
-             "line %d. "
-             "Left operand is '%s', but right operand is '%s'.\n",
-             opToken->lexeme, opToken->line, dataTypeToString(leftType),
-             dataTypeToString(rightType));
+      char semanticErrorMessage[BUFFER_SIZE + 1];
+      sprintf(semanticErrorMessage,
+              "Type mismatch in arithmetic operation '%s' at"
+              "line %d. "
+              "Left operand is '%s', but right operand is '%s'.\n",
+              opToken->lexeme, opToken->line, dataTypeToString(leftType),
+              dataTypeToString(rightType));
+
+      semanticError(semanticErrorMessage);
     }
 
     return parseExprc(leftType);
@@ -708,17 +788,22 @@ DataType parseTermc(DataType leftType) {
 
   if (look_ahead->type == TOKEN_MUL || look_ahead->type == TOKEN_DIV ||
       look_ahead->type == TOKEN_MOD) {
-    Token opToken = *look_ahead;
+    Token *opToken = look_ahead;
     match(look_ahead->type, look_ahead->lexeme);
 
     DataType rightType = parseFactor();
 
     if (leftType != rightType) {
-      printf("Semantic Error: Type mismatch in arithmetic operation '%s' at "
-             "line %d. "
-             "Left operand is '%s', but right operand is '%s'.\n",
-             opToken.lexeme, opToken.line, dataTypeToString(leftType),
-             dataTypeToString(rightType));
+      char semanticErrorMessage[BUFFER_SIZE + 1];
+      sprintf(semanticErrorMessage,
+              "Type mismatch in arithmetic operation '%s' at"
+              "line %d. "
+              "Left operand is '%s', but right operand is '%s'.\n",
+              opToken->lexeme, opToken->line, dataTypeToString(leftType),
+              dataTypeToString(rightType));
+
+      semanticError(semanticErrorMessage);
+
       return ERROR;
     }
 
@@ -766,14 +851,10 @@ DataType parseFactor() {
   if (look_ahead->type == TOKEN_ID) {
     // Look up the identifier in symbol table
     // If found, return the symbol's return type
-    SymbolTableEntry *symbol = D(look_ahead->lexeme);
-    if (!symbol) {
-      printf("Undeclared variable %s at line number %d\n", look_ahead->lexeme,
-             look_ahead->line);
-      return ERROR;
-    }
+    char *factorId = look_ahead->lexeme;
 
-    match(TOKEN_ID, look_ahead->lexeme);
+    match(TOKEN_ID, factorId);
+    SymbolTableEntry *symbol = D(factorId);
     parseFactorc(symbol);
 
     return symbol->returnType;
@@ -787,12 +868,9 @@ DataType parseFactor() {
     return numberType;
   }
 
-  if (match(TOKEN_LEFT_PAREN, "(")) {
+  if (look_ahead->type == TOKEN_LEFT_PAREN) {
+    match(TOKEN_LEFT_PAREN, "(");
     DataType exprType = parseExpr();
-
-    if (exprType == ERROR) {
-      puts("Semantic Error");
-    }
 
     if (!match(TOKEN_RIGHT_PAREN, ")")) {
       handleParseError("Expected ')'", isInFollowSetForFactor);
@@ -815,52 +893,28 @@ void parseFactorc(SymbolTableEntry *symbol) {
 
   if (look_ahead->type == TOKEN_LEFT_PAREN) {
     if (symbol->symbolType != FUNCTION) {
-      printf("Semantic Error: '%s' is not a function but is used as one (line "
-             "%d).\n",
-             symbol->lexeme, look_ahead->line);
+      char semanticErrorMessage[BUFFER_SIZE + 1];
+      sprintf(semanticErrorMessage,
+              "'%s' is not a function but is used as one (line "
+              "%d).\n",
+              symbol->lexeme, look_ahead->line);
+
+      semanticError(semanticErrorMessage);
     }
+
+    // Manage call stack
+    pushCallFrame();
 
     match(TOKEN_LEFT_PAREN, "(");
-
-    // Parse argument expressions and track types
     parseExprs();
-
-    // Get the function entry
-    SymbolTableEntry *functionEntry = lookupSymbol(symbol->lexeme);
-
-    // Check argument count mismatch
-    if (argCount != functionEntry->parameterCount) {
-      if (argCount > functionEntry->parameterCount) {
-        printf("Semantic Error: Too many arguments for function '%s' (line "
-               "%d). Expected %d, but got %d.\n",
-               functionEntry->lexeme, look_ahead->line,
-               functionEntry->parameterCount, argCount);
-      } else {
-        printf("Semantic Error: Too few arguments for function '%s' (line %d). "
-               "Expected %d, but got %d.\n",
-               functionEntry->lexeme, look_ahead->line,
-               functionEntry->parameterCount, argCount);
-      }
-    }
-
-    // Check argument type mismatches
-    for (int i = 0; i < functionEntry->parameterCount; i++) {
-      if (functionEntry->parameters[i] != tempArgTypeList[i]) {
-        printf("Semantic Error: Argument %d of function '%s' (line %d) has "
-               "incorrect type. Expected '%s', but got '%s'.\n",
-               i + 1, functionEntry->lexeme, look_ahead->line,
-               dataTypeToString(functionEntry->parameters[i]),
-               dataTypeToString(tempArgTypeList[i]));
-      }
-    }
-
-    resetArgCount();
 
     if (!match(TOKEN_RIGHT_PAREN, ")")) {
       handleParseError("Expected closing parenthesis ')'",
                        isInFollowSetForFactor);
       return;
     }
+
+    handleFunctionCall(symbol);
 
     return;
   }
@@ -876,12 +930,9 @@ void parseExprs() {
   if (look_ahead->type == TOKEN_ID || look_ahead->type == TOKEN_INT ||
       look_ahead->type == TOKEN_DOUBLE ||
       look_ahead->type == TOKEN_LEFT_PAREN) {
-    // check for previous
-    // check the argument type
-    DataType type = parseExpr();
-    tempArgTypeList[argCount++] = type;
-    // check if it matched the arg type
-    // increment temp arg count
+    FunctionCallFrame *frame = currentCallFrame();
+
+    frame->argTypes[frame->argCount++] = parseExpr();
     parseExprsc();
 
     return;
@@ -895,7 +946,8 @@ void parseExprsc() {
   // EXPRSC → ε
   preParse("exprsc");
 
-  if (match(TOKEN_COMMA, ",")) {
+  if (look_ahead->type == TOKEN_COMMA) {
+    match(TOKEN_COMMA, ",");
     parseExprs();
     return;
   }
@@ -956,41 +1008,34 @@ bool isInFollowSetForBfactor() {
 
 void parseBfactor() {
   // BFACTOR → not bfactor
-  // BFACTOR → (bexpr)
   // BFACTOR → (expr comp expr)
   preParse("bfactor");
 
-  if (match(TOKEN_KEYWORD, "not")) {
+  if (isKeyword("not", 3)) {
+    match(TOKEN_KEYWORD, "not");
     parseBfactor();
     return;
   }
 
-  if (match(TOKEN_LEFT_PAREN, "(")) {
-    if (isComparison(nextToken()->type)) {
-      // BFACTOR → (expr comp expr)
-      DataType leftType = parseExpr();
-      parseComp();
-      DataType rightType = parseExpr();
+  if (look_ahead->type == TOKEN_LEFT_PAREN) {
+    match(TOKEN_LEFT_PAREN, "(");
 
-      if (leftType != rightType) {
-        printf("Type error: Type mismatch in comparison at line %d\n",
-               look_ahead->line);
-      }
+    DataType leftType = parseExpr();
+    parseComp();
+    DataType rightType = parseExpr();
 
-      if (!match(TOKEN_RIGHT_PAREN, ")")) {
-        handleParseError("Expected closing parenthesis ')'",
-                         isInFollowSetForBfactor);
-        return;
-      }
-    } else {
-      // BFACTOR → (bexpr)
-      parseBexpr();
+    if (leftType != rightType) {
+      char semanticErrorMessage[BUFFER_SIZE + 1];
+      sprintf(semanticErrorMessage, "Type mismatch in comparison at line %d\n",
+              look_ahead->line);
 
-      if (!match(TOKEN_RIGHT_PAREN, ")")) {
-        handleParseError("Expected closing parenthesis ')'",
-                         isInFollowSetForBfactor);
-        return;
-      }
+      semanticError(semanticErrorMessage);
+    }
+
+    if (!match(TOKEN_RIGHT_PAREN, ")")) {
+      handleParseError("Expected closing parenthesis ')'",
+                       isInFollowSetForBfactor);
+      return;
     }
 
     return;

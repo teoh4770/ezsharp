@@ -11,6 +11,30 @@ SymbolTable scopes[MAX_SCOPES];
 char semanticErrorBuffer[BUFFER_SIZE + 1];
 size_t semanticErrorBufferIndex = 0;
 
+DataType tempDeclarationReturnType = INT;
+DataType tempArgTypeList[MAX_ARGS];
+SymbolTableEntry tempArgList[MAX_ARGS];
+int argCount = 0;
+
+FunctionCallStack callStack = {.top = -1}; // top property is 0 based
+
+// Type mismatch
+const char *TYPE_MISMATCH_ERROR =
+    "Type mismatch in %s at line %d. "
+    "Left operand is '%s', but right operand is '%s'.";
+
+const char *ARGUMEMT_TYPE_MISMATCH_ERROR =
+    "Argument %d of function '%s' (line %d) has "
+    "incorrect type. Expected '%s', but got '%s'.\n";
+
+// Undeclared variable
+const char *UNDECLARED_VARIABLE_ERROR =
+    "Undeclared variable %s at line number %d\n";
+
+// argument count error
+const char *ARG_COUNT_ERROR =
+    "%s arguments for function '%s' (line %d). Expected %d, but got %d.";
+
 // function to create default symbol table
 SymbolTable defaultSymbolTable(const char *scopeName) {
   SymbolTable table;
@@ -30,6 +54,7 @@ void pushScope(const char *scopeName) {
     snprintf(errorMsg, sizeof(errorMsg), "Maximum scope limit of %d reached.",
              MAX_SCOPES);
     scopeError(errorMsg);
+
     return;
   }
 
@@ -95,9 +120,6 @@ SymbolTableEntry *lookupSymbol(const char *lexeme) {
     SymbolTable *table = &scopes[i];
 
     for (int j = 0; j < table->entryCount; j++) {
-      printEntry(table->entries[j]);
-      printf("lexeme: %s\n", lexeme);
-
       if (_strcmp(table->entries[j].lexeme, lexeme) == 0) {
         return &(table->entries[j]);
       }
@@ -121,8 +143,46 @@ SymbolTableEntry *getFunctionEntry() {
   return NULL; // Symbol not found
 }
 
+void pushCallFrame() {
+  if (callStack.top >= MAX_CALL_STACKS) {
+    fprintf(stderr, "Call stack overflow\n");
+    return;
+  }
+
+  callStack.top++;
+
+  FunctionCallFrame *frame = &callStack.stack[callStack.top];
+  frame->argCount = 0;
+
+  for (int i = 0; i < MAX_ARGS; i++) {
+    frame->argTypes[i] = ERROR;
+  }
+}
+
+void popCallFrame() {
+  if (callStack.top < 0) {
+    fprintf(stderr, "Call stack is already empty\n");
+    return;
+  }
+
+  callStack.top--;
+}
+
+FunctionCallFrame *currentCallFrame() {
+  if (callStack.top < 0) {
+    return NULL;
+  }
+
+  return &callStack.stack[callStack.top];
+}
+
 void scopeError(const char *message) {
   fprintf(stderr, "Scope Error: %s\n", message);
+  return;
+}
+
+void semanticError(const char *message) {
+  fprintf(stderr, "Semantic Error: %s\n", message);
   return;
 }
 

@@ -25,7 +25,7 @@ int main(int argc, const char *argv[]) {
   // Open the file with extension ".cp"
   // CorrectSyntaxTest
   // IncorrectSyntaxTest
-  int fd = open("tests/ParameterMismatch.cp", O_RDONLY);
+  int fd = open("tests/CorrectSyntax2.cp", O_RDONLY);
   if (fd == -1) {
     printf("Error Number % d\n", errno);
     _exit(1);
