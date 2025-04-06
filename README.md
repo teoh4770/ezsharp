@@ -315,7 +315,6 @@ BTERM → BFACTOR BTERMC
 BTERMC → and BFACTOR BTERMC  
 BTERMC → ε
 BFACTOR → not bfactor
-BFACTOR → (bexpr)
 BFACTOR → (expr comp expr)
 COMP → < 
 COMP → > 
