@@ -11,15 +11,6 @@
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 
-//> report-error: line, where, message
-void report(int line, const char *where, const char *message) {
-  printf("[line %d] Error %s: %s", line, where, message);
-}
-//< report-error
-
-//> show-error: line, message
-static void error(int line, const char *message) { report(line, "", message); }
-//< show-error
 
 int main(int argc, const char *argv[]) {
   // Open the file with extension ".cp"
