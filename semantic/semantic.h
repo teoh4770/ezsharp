@@ -48,11 +48,6 @@ extern SymbolTable scopes[];
 extern char semanticErrorBuffer[];
 extern size_t semanticErrorBufferIndex;
 
-extern const char *TYPE_MISMATCH_ERROR;
-extern const char *ARGUMEMT_TYPE_MISMATCH_ERROR;
-extern const char *UNDECLARED_VARIABLE_ERROR;
-extern const char *ARG_COUNT_ERROR;
-
 extern DataType tempDeclarationReturnType; // For varlist only
 extern DataType tempArgTypeList[];
 extern SymbolTableEntry tempArgList[];

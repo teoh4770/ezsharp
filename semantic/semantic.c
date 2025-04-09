@@ -18,24 +18,7 @@ int argCount = 0;
 
 FunctionCallStack callStack = {.top = -1}; // top property is 0 based
 
-// Type mismatch
-const char *TYPE_MISMATCH_ERROR =
-    "Type mismatch in %s at line %d. "
-    "Left operand is '%s', but right operand is '%s'.";
-
-const char *ARGUMEMT_TYPE_MISMATCH_ERROR =
-    "Argument %d of function '%s' (line %d) has "
-    "incorrect type. Expected '%s', but got '%s'.\n";
-
-// Undeclared variable
-const char *UNDECLARED_VARIABLE_ERROR =
-    "Undeclared variable %s at line number %d\n";
-
-// argument count error
-const char *ARG_COUNT_ERROR =
-    "%s arguments for function '%s' (line %d). Expected %d, but got %d.";
-
-// function to create default symbol table
+// Create default symbol table
 SymbolTable defaultSymbolTable(const char *scopeName) {
   SymbolTable table;
   table.entryCount = 0;
