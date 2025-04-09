@@ -91,5 +91,6 @@ void B();
 void C(SymbolType symbolType, DataType returnType, int lineNumber,
        int parameterCount, char *symbolName);
 SymbolTableEntry *D(const char *lexeme);
+void handleSemanticError(const char *format, ...);
 
 #endif // PARSER_H

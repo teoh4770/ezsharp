@@ -18,8 +18,8 @@ Token identifiers[1024];
 int identifierCount = 0;
 
 // Variable for this module
-char syntaxErrorBuffer[BUFFER_SIZE + 1];
-size_t syntaxErrorBufferIndex = 0;
+char parseErrorBuffer[BUFFER_SIZE + 1];
+size_t parseErrorBufferIndex = 0;
 
 char symbolTableBuffer[BUFFER_SIZE + 1];
 size_t symbolTableBufferIndex = 0;
@@ -45,18 +45,18 @@ Token *previousToken() { return look_ahead - 1; }
 
 Token *nextToken() { return look_ahead + 1; }
 
-void syntaxError(const char *expectedMessage) {
+void parseError(const char *expectedMessage) {
   char *lexeme = getTokenLexeme(look_ahead);
-  char syntaxErrorMessage[BUFFER_SIZE + 1];
+  char parseErrorMessage[BUFFER_SIZE + 1];
 
   // Print and create syntax error file
-  sprintf(syntaxErrorMessage, "Syntax Error: %s, but found '%s' at line %d\n",
+  sprintf(parseErrorMessage, "Syntax Error: %s, but found '%s' at line %d\n",
           expectedMessage, lexeme, look_ahead->line);
 
-  appendToBuffer(syntaxErrorBuffer, &syntaxErrorBufferIndex, syntaxErrorMessage,
+  appendToBuffer(parseErrorBuffer, &parseErrorBufferIndex, parseErrorMessage,
                  "syntax_analysis_errors.txt");
-  flushBufferToFile("syntax_analysis_errors.txt", syntaxErrorBuffer,
-                    &syntaxErrorBufferIndex);
+  flushBufferToFile("syntax_analysis_errors.txt", parseErrorBuffer,
+                    &parseErrorBufferIndex);
 
   free(lexeme);
 }
@@ -100,7 +100,7 @@ bool isNumber(TokenType type) {
 }
 
 void handleParseError(const char *message, bool (*isInFollowSet)()) {
-  syntaxError(message);
+  parseError(message);
 
   while (!isAtEnd()) {
     if (isInFollowSet()) {
@@ -109,6 +109,17 @@ void handleParseError(const char *message, bool (*isInFollowSet)()) {
 
     advanceToken();
   }
+}
+
+void handleSemanticError(const char *format, ...) {
+  char semanticErrorMessage[BUFFER_SIZE + 1];
+  va_list args;
+
+  va_start(args, format);
+  vsnprintf(semanticErrorMessage, BUFFER_SIZE, format, args);
+  va_end(args);
+
+  semanticError(semanticErrorMessage);
 }
 
 // Push scope operation
@@ -142,11 +153,8 @@ SymbolTableEntry *D(const char *lexeme) {
   SymbolTableEntry *variable = lookupSymbol(lexeme);
 
   if (!variable) {
-    char semanticErrorMessage[BUFFER_SIZE + 1];
-    sprintf(semanticErrorMessage, "Undeclared variable %s at line number %d\n",
-            lexeme, look_ahead->line);
-
-    semanticError(semanticErrorMessage);
+    handleSemanticError("Undeclared variable %s at line number %d\n", lexeme,
+                        look_ahead->line);
   }
 
   return variable;
@@ -159,60 +167,31 @@ void handleFunctionCall(SymbolTableEntry *symbol) {
   FunctionCallFrame *frame = currentCallFrame();
 
   if (frame->argCount != functionEntry->parameterCount) {
-    char semanticErrorMessage[BUFFER_SIZE + 1];
-
     if (frame->argCount > functionEntry->parameterCount) {
-      sprintf(semanticErrorMessage,
-              "Too many arguments for function '%s' (line "
-              "%d). Expected %d, but got %d.\n",
-              functionEntry->lexeme, look_ahead->line,
-              functionEntry->parameterCount, frame->argCount);
+      handleSemanticError("%s arguments for function '%s' (line %d). Expected "
+                          "%d, but got %d.\n",
+                          "Too many", functionEntry->lexeme, look_ahead->line,
+                          functionEntry->parameterCount, frame->argCount);
     } else {
-      sprintf(semanticErrorMessage,
-              "Too few arguments for function '%s' (line %d). "
-              "Expected %d, but got %d.\n",
-              functionEntry->lexeme, look_ahead->line,
-              functionEntry->parameterCount, frame->argCount);
+      handleSemanticError("%s arguments for function '%s' (line %d). Expected "
+                          "%d, but got %d.\n",
+                          "Too few", functionEntry->lexeme, look_ahead->line,
+                          functionEntry->parameterCount, frame->argCount);
     }
-
-    semanticError(semanticErrorMessage);
   }
 
   for (int i = 0; i < functionEntry->parameterCount; i++) {
     if (frame->argTypes[i] != functionEntry->parameters[i]) {
-      char semanticErrorMessage[BUFFER_SIZE + 1];
-      sprintf(semanticErrorMessage,
-              "Argument %d of function '%s' (line %d) has incorrect type. "
-              "Expected '%s', but got '%s'.\n",
-              i + 1, functionEntry->lexeme, look_ahead->line,
-              dataTypeToString(functionEntry->parameters[i]),
-              dataTypeToString(frame->argTypes[i]));
-
-      semanticError(semanticErrorMessage);
+      handleSemanticError("Argument %d of function '%s' (line %d) has "
+                          "incorrect type. Expected '%s', but got '%s'.\n",
+                          i + 1, functionEntry->lexeme, look_ahead->line,
+                          dataTypeToString(functionEntry->parameters[i]),
+                          dataTypeToString(frame->argTypes[i]));
     }
   }
 
   resetArgCount();
   popCallFrame();
-}
-
-/*
-logSemanticError(
-    "Type mismatch in assignment at line %d. "
-    "Variable '%s' is of type '%s', but assigned expression of type '%s'.",
-    look_ahead->line, variableName,
-    dataTypeToString(variable->returnType),
-    dataTypeToString(rightType));
- */
-void logSemanticError(const char *format, ...) {
-  char semanticErrorMessage[BUFFER_SIZE + 1];
-  va_list args;
-
-  va_start(args, format);
-  vsnprintf(semanticErrorMessage, BUFFER_SIZE, format, args);
-  va_end(args);
-
-  semanticError(semanticErrorMessage);
 }
 
 //< Helper functions
@@ -245,7 +224,7 @@ void Parse(Token *tokens, int tokenCount) {
   remove("symbol_table.txt");
 
   // Initialization
-  syntaxErrorBuffer[BUFFER_SIZE] = '\0';
+  parseErrorBuffer[BUFFER_SIZE] = '\0';
   symbolTableBuffer[BUFFER_SIZE] = '\0';
 
   // Add extra $ token to indicate end of input tokens
@@ -284,7 +263,7 @@ void parseProg() {
   B();
 
   if (!match(TOKEN_DOT, ".")) {
-    syntaxError("Expected '.' to indicate end of the program");
+    parseError("Expected '.' to indicate end of the program");
     syncProg();
 
     return;
@@ -650,16 +629,11 @@ void parseStmt() {
 
     // Type checking: Ensure LHS (variable) type matches RHS (expression) type
     if (variable && variable->returnType != rightType) {
-      char semanticErrorMessage[BUFFER_SIZE + 1];
-      sprintf(semanticErrorMessage,
-              "Type mismatch in assignment at line %d. "
-              "Variable '%s' is of type '%s', but assigned expression of type "
-              "'%s'.\n",
-              look_ahead->line, variableName,
-              dataTypeToString(variable->returnType),
-              dataTypeToString(rightType));
-
-      semanticError(semanticErrorMessage);
+      handleSemanticError("Type mismatch during assignment at line %d. "
+                          "Left operand is '%s', but right operand is '%s'.",
+                          look_ahead->line,
+                          dataTypeToString(variable->returnType),
+                          dataTypeToString(rightType));
     }
   } else if (isKeyword("if", 2)) {
     match(TOKEN_KEYWORD, "if");
@@ -698,8 +672,9 @@ void parseStmt() {
     SymbolTableEntry *functionEntry = getFunctionEntry();
 
     if (returnType != functionEntry->returnType) {
-      printf("Semantic error: Function declared as %d but returning %d\n",
-             functionEntry->returnType, returnType);
+      handleSemanticError("Function declared as %s but returning %s\n",
+                          dataTypeToString(functionEntry->returnType),
+                          dataTypeToString(returnType));
     }
   } else {
     return;
@@ -753,15 +728,10 @@ DataType parseExprc(DataType leftType) {
     DataType rightType = parseTerm();
 
     if (leftType != rightType) {
-      char semanticErrorMessage[BUFFER_SIZE + 1];
-      sprintf(semanticErrorMessage,
-              "Type mismatch in arithmetic operation '%s' at"
-              "line %d. "
-              "Left operand is '%s', but right operand is '%s'.\n",
-              opToken->lexeme, opToken->line, dataTypeToString(leftType),
-              dataTypeToString(rightType));
-
-      semanticError(semanticErrorMessage);
+      handleSemanticError("Type mismatch in arithmetic operation at line %d. "
+                          "Left operand is '%s', but right operand is '%s'.",
+                          opToken->line, dataTypeToString(leftType),
+                          dataTypeToString(rightType));
     }
 
     return parseExprc(leftType);
@@ -794,15 +764,10 @@ DataType parseTermc(DataType leftType) {
     DataType rightType = parseFactor();
 
     if (leftType != rightType) {
-      char semanticErrorMessage[BUFFER_SIZE + 1];
-      sprintf(semanticErrorMessage,
-              "Type mismatch in arithmetic operation '%s' at"
-              "line %d. "
-              "Left operand is '%s', but right operand is '%s'.\n",
-              opToken->lexeme, opToken->line, dataTypeToString(leftType),
-              dataTypeToString(rightType));
-
-      semanticError(semanticErrorMessage);
+      handleSemanticError("Type mismatch in arithmetic operation at line %d. "
+                          "Left operand is '%s', but right operand is '%s'.",
+                          opToken->line, dataTypeToString(leftType),
+                          dataTypeToString(rightType));
 
       return ERROR;
     }
@@ -893,13 +858,9 @@ void parseFactorc(SymbolTableEntry *symbol) {
 
   if (look_ahead->type == TOKEN_LEFT_PAREN) {
     if (symbol->symbolType != FUNCTION) {
-      char semanticErrorMessage[BUFFER_SIZE + 1];
-      sprintf(semanticErrorMessage,
-              "'%s' is not a function but is used as one (line "
-              "%d).\n",
-              symbol->lexeme, look_ahead->line);
-
-      semanticError(semanticErrorMessage);
+      handleSemanticError("'%s' is not a function but is used as one (line "
+                          "%d).\n",
+                          symbol->lexeme, look_ahead->line);
     }
 
     // Manage call stack
@@ -1025,11 +986,10 @@ void parseBfactor() {
     DataType rightType = parseExpr();
 
     if (leftType != rightType) {
-      char semanticErrorMessage[BUFFER_SIZE + 1];
-      sprintf(semanticErrorMessage, "Type mismatch in comparison at line %d\n",
-              look_ahead->line);
-
-      semanticError(semanticErrorMessage);
+      handleSemanticError("Type mismatched in comparison at line %d. Left "
+                          "operand is '%s' but right operand is '%s'\n",
+                          look_ahead->line, dataTypeToString(leftType),
+                          dataTypeToString(rightType));
     }
 
     if (!match(TOKEN_RIGHT_PAREN, ")")) {
