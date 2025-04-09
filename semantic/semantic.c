@@ -1,4 +1,5 @@
 #include "semantic.h"
+#include "../common/file.h"
 #include <stdio.h>
 
 #define BUFFER_SIZE 1024
@@ -160,33 +161,27 @@ FunctionCallFrame *currentCallFrame() {
 }
 
 void scopeError(const char *message) {
-  fprintf(stderr, "Scope Error: %s\n", message);
-  return;
+  char fullMessage[BUFFER_SIZE + 1];
+  snprintf(fullMessage, BUFFER_SIZE, "Scope Error: %s\n", message);
+
+  semanticErrorBuffer[BUFFER_SIZE] = '\0';
+  appendToBuffer(semanticErrorBuffer, &semanticErrorBufferIndex, fullMessage,
+                 "semantic_errors.txt");
+  flushBufferToFile("semantic_errors.txt", semanticErrorBuffer,
+                    &semanticErrorBufferIndex);
 }
 
 void semanticError(const char *message) {
-  fprintf(stderr, "Semantic Error: %s\n", message);
+  char fullMessage[BUFFER_SIZE + 1];
+  snprintf(fullMessage, BUFFER_SIZE, "Semantic Error: %s\n", message);
+
+  semanticErrorBuffer[BUFFER_SIZE] = '\0';
+  appendToBuffer(semanticErrorBuffer, &semanticErrorBufferIndex, fullMessage,
+                 "semantic_errors.txt");
+  flushBufferToFile("semantic_errors.txt", semanticErrorBuffer,
+                    &semanticErrorBufferIndex);
   return;
 }
-
-// void semanticError(const char *expectedMessage) {
-//   // char *lexeme = getTokenLexeme(look_ahead);
-//   char semanticErrorMessage[BUFFER_SIZE + 1];
-
-//   // Print and create syntax error file
-//   // sprintf(semanticErrorMessage, "Semantic Error: %s, but found '%s' at
-//   line
-//   // %d\n",
-//   //         expectedMessage, lexeme, look_ahead->line);
-//   \
-
-//   appendToBuffer(semanticErrorBuffer, &semanticErrorBufferIndex,
-//                  semanticErrorMessage, "semantic_errors.txt");
-//   flushBufferToFile("semantic_errors.txt", semanticErrorBuffer,
-//                     &semanticErrorBufferIndex);
-
-//   // free(lexeme);
-// }
 
 void printScope(SymbolTable *table) {
   puts("===============");

@@ -111,17 +111,6 @@ void handleParseError(const char *message, bool (*isInFollowSet)()) {
   }
 }
 
-void handleSemanticError(const char *format, ...) {
-  char semanticErrorMessage[BUFFER_SIZE + 1];
-  va_list args;
-
-  va_start(args, format);
-  vsnprintf(semanticErrorMessage, BUFFER_SIZE, format, args);
-  va_end(args);
-
-  semanticError(semanticErrorMessage);
-}
-
 // Push scope operation
 void A(char *scopeName) { pushScope(scopeName); }
 
@@ -153,11 +142,22 @@ SymbolTableEntry *D(const char *lexeme) {
   SymbolTableEntry *variable = lookupSymbol(lexeme);
 
   if (!variable) {
-    handleSemanticError("Undeclared variable %s at line number %d\n", lexeme,
+    handleSemanticError("Undeclared variable %s at line number %d", lexeme,
                         look_ahead->line);
   }
 
   return variable;
+}
+
+void handleSemanticError(const char *format, ...) {
+  char semanticErrorMessage[BUFFER_SIZE + 1];
+  va_list args;
+
+  va_start(args, format);
+  vsnprintf(semanticErrorMessage, BUFFER_SIZE, format, args);
+  va_end(args);
+
+  semanticError(semanticErrorMessage);
 }
 
 void resetArgCount() { argCount = 0; }
@@ -169,12 +169,12 @@ void handleFunctionCall(SymbolTableEntry *symbol) {
   if (frame->argCount != functionEntry->parameterCount) {
     if (frame->argCount > functionEntry->parameterCount) {
       handleSemanticError("%s arguments for function '%s' (line %d). Expected "
-                          "%d, but got %d.\n",
+                          "%d, but got %d.",
                           "Too many", functionEntry->lexeme, look_ahead->line,
                           functionEntry->parameterCount, frame->argCount);
     } else {
       handleSemanticError("%s arguments for function '%s' (line %d). Expected "
-                          "%d, but got %d.\n",
+                          "%d, but got %d.",
                           "Too few", functionEntry->lexeme, look_ahead->line,
                           functionEntry->parameterCount, frame->argCount);
     }
@@ -183,7 +183,7 @@ void handleFunctionCall(SymbolTableEntry *symbol) {
   for (int i = 0; i < functionEntry->parameterCount; i++) {
     if (frame->argTypes[i] != functionEntry->parameters[i]) {
       handleSemanticError("Argument %d of function '%s' (line %d) has "
-                          "incorrect type. Expected '%s', but got '%s'.\n",
+                          "incorrect type. Expected '%s', but got '%s'.",
                           i + 1, functionEntry->lexeme, look_ahead->line,
                           dataTypeToString(functionEntry->parameters[i]),
                           dataTypeToString(frame->argTypes[i]));
@@ -222,6 +222,7 @@ void Parse(Token *tokens, int tokenCount) {
   // Remove the created files first
   remove("syntax_analysis_errors.txt");
   remove("symbol_table.txt");
+  remove("semantic_errors.txt");
 
   // Initialization
   parseErrorBuffer[BUFFER_SIZE] = '\0';
@@ -672,7 +673,7 @@ void parseStmt() {
     SymbolTableEntry *functionEntry = getFunctionEntry();
 
     if (returnType != functionEntry->returnType) {
-      handleSemanticError("Function declared as %s but returning %s\n",
+      handleSemanticError("Function declared as %s but returning %s",
                           dataTypeToString(functionEntry->returnType),
                           dataTypeToString(returnType));
     }
@@ -859,7 +860,7 @@ void parseFactorc(SymbolTableEntry *symbol) {
   if (look_ahead->type == TOKEN_LEFT_PAREN) {
     if (symbol->symbolType != FUNCTION) {
       handleSemanticError("'%s' is not a function but is used as one (line "
-                          "%d).\n",
+                          "%d).",
                           symbol->lexeme, look_ahead->line);
     }
 
@@ -987,7 +988,7 @@ void parseBfactor() {
 
     if (leftType != rightType) {
       handleSemanticError("Type mismatched in comparison at line %d. Left "
-                          "operand is '%s' but right operand is '%s'\n",
+                          "operand is '%s' but right operand is '%s'",
                           look_ahead->line, dataTypeToString(leftType),
                           dataTypeToString(rightType));
     }
