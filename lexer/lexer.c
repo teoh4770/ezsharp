@@ -1,6 +1,7 @@
 // lexer.c: the main component to handle lexical analysis
 
 #include "lexer.h"
+#include "../common/error_state.h"
 #include "../common/file_utils.h"
 #include "../common/string.h"
 #include <fcntl.h>  // For open() flags
@@ -49,6 +50,7 @@ static const char *keywords[] = {
     "do", "od",  "def", "fed", "return", "print", "int", "double"};
 
 static const int keywordsCount = sizeof(keywords) / sizeof(keywords[0]);
+int tokenCount = 0;
 
 void initializeLexer(Lexer *lexer, int *inputFd, int *transitionTableFd) {
   // Initialize lexer state and buffer-related variables
@@ -69,6 +71,7 @@ void initializeLexer(Lexer *lexer, int *inputFd, int *transitionTableFd) {
 }
 
 void handleError(Lexer *lexer, char character) {
+
   // Reset the state to start lexing from the invalid character
   lexer->currentState = STATE_START;
   TransitionState state =
@@ -191,6 +194,7 @@ Token *lexicalAnalysis(int *inputFd, int *transitionTableFd) {
                      "lexical_analysis_errors.txt");
 
       handleError(&lexer, character);
+      setErrorOccurred();
 
       continue;
     }
@@ -247,5 +251,3 @@ Token *lexicalAnalysis(int *inputFd, int *transitionTableFd) {
 
   return tokens;
 }
-
-int getTokenCount() { return tokenCount; }

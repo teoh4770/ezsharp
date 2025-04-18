@@ -25,5 +25,6 @@ Token *nextToken();
 
 // Matching
 bool matchToken(Token current, Token target);
+bool match(TokenType tokenType, char *lexeme);
 
 #endif // TOKEN_UTILS

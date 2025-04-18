@@ -2,10 +2,8 @@
 #include "../common/string.h"
 #include <stdio.h>
 
-// Global variables
 Token *look_ahead = NULL;
 
-// Helper functions
 void addEndToken(Token *tokens, int *tokenCount) {
   tokens[*tokenCount] = makeToken(TOKEN_DOLLAR, "$", 1, -1);
   (*tokenCount)++;
@@ -27,7 +25,6 @@ bool isNumber(TokenType type) {
   return type == TOKEN_INT || type == TOKEN_DOUBLE;
 }
 
-// Main functions
 void advanceToken() {
   if (look_ahead->type != TOKEN_DOLLAR) {
     look_ahead++;
@@ -59,5 +56,18 @@ bool matchToken(Token current, Token target) {
   }
 
   puts("-> Token Match\n");
+  return true;
+}
+
+bool match(TokenType tokenType, char *lexeme) {
+  // Line number is set to -1, since it is not important for token match
+  Token targetToken = makeToken(tokenType, lexeme, _strlen(lexeme), -1);
+
+  if (!matchToken(*look_ahead, targetToken)) {
+    return false;
+  }
+
+  advanceToken();
+
   return true;
 }

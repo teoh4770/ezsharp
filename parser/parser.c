@@ -6,6 +6,7 @@
 #include <stdlib.h> // For free()
 #include <unistd.h> // For write() and close()
 
+#include "../common/error_state.h"
 #include "../common/file_utils.h"
 #include "../common/string.h"
 #include "../common/token_utils.h"
@@ -30,6 +31,8 @@ void preParse(const char *message) {
 }
 
 void parseError(const char *expectedMessage) {
+  setErrorOccurred();
+
   char *lexeme = getTokenLexeme(look_ahead);
   char parseErrorMessage[BUFFER_SIZE + 1];
 
@@ -143,24 +146,7 @@ void handleFunctionCall(SymbolTableEntry *symbol) {
 //< Helper functions
 
 //> Parse Functions
-bool match(TokenType tokenType, char *lexeme) {
-  // Line number is set to -1, since it is not important for token match
-  Token targetToken = makeToken(tokenType, lexeme, _strlen(lexeme), -1);
-
-  if (!matchToken(*look_ahead, targetToken)) {
-    return false;
-  }
-
-  if (look_ahead->type == TOKEN_ID) {
-    identifiers[identifierCount++] = *look_ahead;
-  }
-
-  advanceToken();
-
-  return true;
-}
-
-void Parse(Token *tokens, int tokenCount) {
+void Parse(Token *tokens) {
   puts("===============");
   puts("Start parsing!");
   puts("===============");
@@ -173,9 +159,6 @@ void Parse(Token *tokens, int tokenCount) {
   // Initialization
   parseErrorBuffer[BUFFER_SIZE] = '\0';
   symbolTableBuffer[BUFFER_SIZE] = '\0';
-
-  // Add extra $ token to indicate end of input tokens
-  addEndToken(tokens, &tokenCount);
 
   // Initialize the look ahead variable
   look_ahead = tokens;

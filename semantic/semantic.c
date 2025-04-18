@@ -1,4 +1,5 @@
 #include "semantic.h"
+#include "../common/error_state.h"
 #include "../common/file_utils.h"
 #include <stdio.h>
 
@@ -172,6 +173,8 @@ void scopeError(const char *message) {
 }
 
 void semanticError(const char *message) {
+  setErrorOccurred();
+
   char fullMessage[BUFFER_SIZE + 1];
   snprintf(fullMessage, BUFFER_SIZE, "Semantic Error: %s\n", message);
 

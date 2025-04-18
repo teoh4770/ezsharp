@@ -13,20 +13,11 @@ extern int identifierCount;
 // Helper functions
 // void addEndToken(Token *tokens, int *tokenCount);
 void preParse(const char *message);
-// void advanceToken();
-// Token *previousToken();
-// Token *nextToken();
-void syntaxError(const char *expectedMessage);
-// bool matchToken(Token current, Token target);
-// bool isAtEnd();
-// bool isKeyword(const char *keyword, int length);
-// bool isComparison(TokenType type);
-// bool isNumber(TokenType type);
+void parseError(const char *expectedMessage);
 void handleParseError(const char *message, bool (*isInFollowSet)());
 
 // Parsing functions
-bool match(TokenType tokenType, char *lexeme);
-void Parse(Token *tokens, int tokenCount);
+void Parse(Token *tokens);
 
 // Follow Set functions
 void syncProg();

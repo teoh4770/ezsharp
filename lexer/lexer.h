@@ -3,12 +3,11 @@
 
 #include "../common/token.h"
 #include "scanner.h"
+#include "stdbool.h"
 #include "transition_table.h"
 
-typedef enum { false, true } bool;
-
-static Token tokens[1024];
-static int tokenCount = 0;
+Token tokens[1024];
+extern int tokenCount;
 
 typedef struct {
   TransitionState currentState;
@@ -21,6 +20,5 @@ typedef struct {
 } Lexer;
 
 Token *lexicalAnalysis(int *inputFd, int *transitionTableFd);
-int getTokenCount();
 
 #endif
