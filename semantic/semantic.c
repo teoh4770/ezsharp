@@ -1,5 +1,5 @@
 #include "semantic.h"
-#include "../common/file.h"
+#include "../common/file_utils.h"
 #include <stdio.h>
 
 #define BUFFER_SIZE 1024

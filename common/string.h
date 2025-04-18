@@ -1,15 +1,16 @@
+// Recreate string functions
+
 #ifndef STRING_H
 #define STRING_H
 
 #include <stdio.h>
 
-// Recreate string functions
-
 /**
  * Calculate the length of a given string.
  *
  * @param src Pointer to the input string (null-terminated).
- * @return The number of characters in the string, excluding the null terminator.
+ * @return The number of characters in the string, excluding the null
+ * terminator.
  */
 int _strlen(const char *src);
 
@@ -47,8 +48,8 @@ int _strncmp(char *str1, const char *str2, size_t n);
  * @return Pointer to the destination buffer (dest).
  *
  * Note: If the length of the source string is less than n, the remaining
- * characters in dest will be null-terminated. If src has more than n characters,
- * no null terminator will be added beyond n.
+ * characters in dest will be null-terminated. If src has more than n
+ * characters, no null terminator will be added beyond n.
  */
 char *_strncpy(char *dest, const char *src, size_t n);
 

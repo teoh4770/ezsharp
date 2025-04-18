@@ -6,7 +6,7 @@
 #include <stdlib.h> // For free()
 #include <unistd.h> // For write() and close()
 
-#include "../common/file.h"
+#include "../common/file_utils.h"
 #include "../common/string.h"
 #include "../common/token_utils.h"
 #include "parser.h"

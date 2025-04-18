@@ -1,7 +1,7 @@
 // lexer.c: the main component to handle lexical analysis
 
 #include "lexer.h"
-#include "../common/file.h"
+#include "../common/file_utils.h"
 #include "../common/string.h"
 #include <fcntl.h>  // For open() flags
 #include <unistd.h> // For write() and close()

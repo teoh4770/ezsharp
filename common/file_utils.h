@@ -1,3 +1,5 @@
+// Helper logic that working with files
+
 #ifndef FILE_H
 #define FILE_H
 

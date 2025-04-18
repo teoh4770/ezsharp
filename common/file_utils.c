@@ -1,7 +1,7 @@
 #include <fcntl.h>  // For open() flags
 #include <unistd.h> // For write() and close()
 #include "../common/string.h"
-#include "../common/file.h"
+#include "../common/file_utils.h"
 
 // Todo: 1024 to BUFFER_SIZE
 //> buffer-file-functions
