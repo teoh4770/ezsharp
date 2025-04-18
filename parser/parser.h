@@ -1,27 +1,27 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "../lexer/token.h"
+#include "../common/token.h"
 #include "../semantic/semantic.h"
 #include <stdbool.h>
 
 // Exported variables
-extern Token *look_ahead;
+// extern Token *look_ahead;
 extern Token identifiers[];
 extern int identifierCount;
 
 // Helper functions
-void addEndToken(Token *tokens, int *tokenCount);
+// void addEndToken(Token *tokens, int *tokenCount);
 void preParse(const char *message);
-void advanceToken();
-Token *previousToken();
-Token *nextToken();
+// void advanceToken();
+// Token *previousToken();
+// Token *nextToken();
 void syntaxError(const char *expectedMessage);
-bool matchToken(Token current, Token target);
-bool isAtEnd();
-bool isKeyword(const char *keyword, int length);
-bool isComparison(TokenType type);
-bool isNumber(TokenType type);
+// bool matchToken(Token current, Token target);
+// bool isAtEnd();
+// bool isKeyword(const char *keyword, int length);
+// bool isComparison(TokenType type);
+// bool isNumber(TokenType type);
 void handleParseError(const char *message, bool (*isInFollowSet)());
 
 // Parsing functions
@@ -77,7 +77,7 @@ void parseBexpr();
 void parseBexprc();
 void parseBterm();
 void parseBtermc();
-void parseBfactor(); // Final one
+void parseBfactor();
 void parseComp();
 bool isComparison(TokenType type);
 

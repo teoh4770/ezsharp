@@ -1,8 +1,8 @@
 #ifndef SCANNER_H
 #define SCANNER_H
 
+#include "../common/token.h"
 #include "buffer.h"
-#include "token.h"
 #include "transition_table.h"
 #include <stdio.h>
 

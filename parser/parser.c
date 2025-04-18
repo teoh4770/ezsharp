@@ -8,12 +8,12 @@
 
 #include "../common/file.h"
 #include "../common/string.h"
+#include "../common/token_utils.h"
 #include "parser.h"
 
 #define BUFFER_SIZE 1024
 
 // Global variables
-Token *look_ahead = NULL;
 Token identifiers[1024];
 int identifierCount = 0;
 
@@ -25,25 +25,9 @@ char symbolTableBuffer[BUFFER_SIZE + 1];
 size_t symbolTableBufferIndex = 0;
 
 //> Helper Functions
-void addEndToken(Token *tokens, int *tokenCount) {
-  // need to update the token
-  tokens[*tokenCount] = makeToken(TOKEN_DOLLAR, "$", 1, -1);
-  (*tokenCount)++;
-}
-
 void preParse(const char *message) {
   printf("Currently parsing: %s\n", message);
 }
-
-void advanceToken() {
-  if (look_ahead->type != TOKEN_DOLLAR) {
-    look_ahead++;
-  }
-}
-
-Token *previousToken() { return look_ahead - 1; }
-
-Token *nextToken() { return look_ahead + 1; }
 
 void parseError(const char *expectedMessage) {
   char *lexeme = getTokenLexeme(look_ahead);
@@ -59,44 +43,6 @@ void parseError(const char *expectedMessage) {
                     &parseErrorBufferIndex);
 
   free(lexeme);
-}
-
-bool matchToken(Token current, Token target) {
-  puts("================");
-  puts("Look-ahead Token");
-  puts("================");
-  printToken(&current);
-
-  puts("============");
-  puts("Target Token");
-  puts("============");
-  printToken(&target);
-
-  // Compare token type and lexeme
-  if (current.type != target.type ||
-      _strncmp(current.lexeme, target.lexeme, current.length) != 0) {
-    puts("-> Token Not Match\n");
-    return false;
-  }
-
-  puts("-> Token Match\n");
-  return true;
-};
-
-bool isAtEnd() { return look_ahead->type == TOKEN_DOLLAR; }
-
-bool isKeyword(const char *keyword, int length) {
-  return look_ahead->type == TOKEN_KEYWORD &&
-         _strncmp(look_ahead->lexeme, keyword, length) == 0;
-}
-
-bool isComparison(TokenType type) {
-  return type == TOKEN_LT || type == TOKEN_LE || type == TOKEN_GT ||
-         type == TOKEN_GE || type == TOKEN_EQ || type == TOKEN_NE;
-}
-
-bool isNumber(TokenType type) {
-  return type == TOKEN_INT || type == TOKEN_DOUBLE;
 }
 
 void handleParseError(const char *message, bool (*isInFollowSet)()) {
@@ -875,7 +821,6 @@ void parseFactorc(SymbolTableEntry *symbol) {
                        isInFollowSetForFactor);
       return;
     }
-
     handleFunctionCall(symbol);
 
     return;

@@ -1,8 +1,8 @@
 #ifndef LEXICAL_ANALYZER_H
 #define LEXICAL_ANALYZER_H
 
+#include "../common/token.h"
 #include "scanner.h"
-#include "token.h"
 #include "transition_table.h"
 
 typedef enum { false, true } bool;
