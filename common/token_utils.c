@@ -4,11 +4,6 @@
 
 Token *look_ahead = NULL;
 
-void addEndToken(Token *tokens, int *tokenCount) {
-  tokens[*tokenCount] = makeToken(TOKEN_DOLLAR, "$", 1, -1);
-  (*tokenCount)++;
-}
-
 bool isAtEnd() { return look_ahead->type == TOKEN_DOLLAR; }
 
 bool isKeyword(const char *keyword, int length) {
@@ -35,39 +30,36 @@ Token *previousToken() { return look_ahead - 1; }
 
 Token *nextToken() { return look_ahead + 1; }
 
-bool matchToken(Token current, Token target) {
+bool matchType(TokenType expectedType) {
   puts("================");
   puts("Look-ahead Token");
   puts("================");
-  printToken(&current);
+  printToken(look_ahead);
 
-  puts("============");
-  puts("Target Token");
-  puts("============");
-  printToken(&target);
-
-  bool isTokenTypeMatched = current.type == target.type;
-  bool isTokenLexemeMatched =
-      _strncmp(current.lexeme, target.lexeme, current.length) == 0;
-
-  if (!isTokenTypeMatched || !isTokenLexemeMatched) {
-    puts("-> Token Not Match\n");
+  if (look_ahead->type != expectedType) {
+    puts("==> Incorrect Type");
+    printf("==> Expected Type is %d\n\n", expectedType);
     return false;
   }
 
-  puts("-> Token Match\n");
+  puts("==> Correct Type\n");
+  advanceToken();
   return true;
 }
 
-bool match(TokenType tokenType, char *lexeme) {
-  // Line number is set to -1, since it is not important for token match
-  Token targetToken = makeToken(tokenType, lexeme, _strlen(lexeme), -1);
+bool matchKeyword(const char *expectedKeyword) {
+  puts("================");
+  puts("Look-ahead Token");
+  puts("================");
+  printToken(look_ahead);
 
-  if (!matchToken(*look_ahead, targetToken)) {
+  if (_strcmp(look_ahead->lexeme, expectedKeyword) != 0) {
+    puts("==>  Incorrect Keyword");
+    printf("==> Expected Keyword is %s\n\n", expectedKeyword);
     return false;
   }
 
+  puts("==>  Correct Keyword\n");
   advanceToken();
-
   return true;
 }

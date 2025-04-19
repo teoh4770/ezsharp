@@ -18,29 +18,54 @@ int instructionCount;
 
 // Token methods
 //> Parse Functions
+void preGen(const char *message) {
+  printf("Currently generate: %s\n", message);
+}
+
 void CodeGen(Token *tokens) {
+  // Reset look_ahead to the beginning of tokens again
   look_ahead = tokens;
-  
-  // prog();
+
+  puts("Generating code now");
+
+  prog();
+
+  if (look_ahead->type == TOKEN_DOLLAR) {
+    puts("=====================");
+    puts("Parsing Reach To End!");
+    puts("=====================");
+  } else {
+    puts("=========================");
+    puts("Parsing Not Reach To End!");
+    puts("=========================");
+  }
 }
 
 void prog() {
   // PROG → A FNS DECLS STMTS B .
   // A(); // Starting point of IR
+  preGen("prog");
+
   fns();
+
   decls();
+
   stmts();
   // B(); // Final point of IR
+  matchType(TOKEN_DOT);
 }
 
 void fns() {
   // FNS → FN ; FNSC
   // FNS → ε
 
-  // match def
+  preGen("fns");
+
   if (isKeyword("def", 3)) {
     fn();
-    match(TOKEN_SEMICOLON, ";");
+
+    matchType(TOKEN_SEMICOLON);
+
     fnsc();
 
     return;
@@ -52,6 +77,7 @@ void fns() {
 void fnsc() {
   // FNSC → FN; FNSC
   // FNSC → ε
+  preGen("fnsc");
 
   fns();
 }
@@ -59,23 +85,37 @@ void fnsc() {
 void fn() {
   // FN → def TYPE FNAME ( PARAMS ) C A C DECLS STMTS fed B
   // Todo: create label for function
-  match(TOKEN_KEYWORD, "def");
+  preGen("fn");
+
+  matchKeyword("def");
+
   type();
+
   fname();
-  match(TOKEN_LEFT_PAREN, "(");
+
+  matchType(TOKEN_LEFT_PAREN);
+
   params();
-  match(TOKEN_LEFT_PAREN, ")");
+
+  matchType(TOKEN_RIGHT_PAREN);
+
   decls();
+
   stmts();
-  match(TOKEN_KEYWORD, "fed");
+
+  matchKeyword("fed");
 }
 
 void params() {
   // PARAMS → TYPE VAR PARAMSC
   // PARAMS → ε
+  preGen("params");
+
   if (isKeyword("int", 3) || isKeyword("double", 6)) {
     type();
+
     var();
+
     paramsc();
 
     return;
@@ -87,9 +127,15 @@ void params() {
 void paramsc() {
   // PARAMSC → , TYPE VAR PARAMSC
   // PARAMSC → ε
-  if (match(TOKEN_COMMA, ",")) {
+  preGen("paramsc");
+
+  if (look_ahead->type == TOKEN_COMMA) {
+    matchType(TOKEN_COMMA);
+
     type();
+
     var();
+
     paramsc();
 
     return;
@@ -100,15 +146,23 @@ void paramsc() {
 
 void fname() {
   // FNAME → ID
-  // match(TOKEN_ID, lexeme);
+  preGen("fname");
+
+  if (look_ahead->type == TOKEN_ID) {
+    matchType(TOKEN_ID);
+  }
 }
 
 void decls() {
   // DECLS → DECL; DECLSC
   // DECLS → ε
+  preGen("decls");
+
   if (isKeyword("int", 3) || isKeyword("double", 6)) {
     decl();
-    match(TOKEN_SEMICOLON, ";");
+
+    matchType(TOKEN_SEMICOLON);
+
     declsc();
 
     return;
@@ -120,11 +174,15 @@ void decls() {
 void declsc() {
   // DECLS → DECL; DECLSC
   // DECLS → ε
+  preGen("declsc");
+
   decls();
 }
 
 void decl() {
   // DECL → TYPE VARS
+  preGen("decl");
+
   type();
   vars();
 }
@@ -134,10 +192,23 @@ void type() {
   // TYPE → double
   // if lookAhead is int, match keyword int
   // if lookAhead is double, match keyword double
+  preGen("type");
+
+  if (isKeyword("int", 3)) {
+    matchKeyword("int");
+    return;
+  }
+
+  if (isKeyword("double", 3)) {
+    matchKeyword("double");
+    return;
+  }
 }
 
 void vars() {
   // VARS → VAR C VARSC
+  preGen("vars");
+
   var();
   varsc();
 }
@@ -145,8 +216,13 @@ void vars() {
 void varsc() {
   // VARSC → , VARS
   // VARSC → ε
-  if (match(TOKEN_COMMA, ",")) {
+  preGen("varsc");
+
+  if (look_ahead->type == TOKEN_COMMA) {
+    matchType(TOKEN_COMMA);
+
     vars();
+
     return;
   }
 
@@ -155,15 +231,23 @@ void varsc() {
 
 void stmts() {
   // STMTS → STMT STMTSC
+  preGen("stmts");
+
   stmt();
+
   stmtsc();
 }
 
 void stmtsc() {
   // STMTSC → ; STMTS
   // STMTSC → ε
-  if (match(TOKEN_SEMICOLON, ";")) {
+  preGen("stmtsc");
+
+  if (look_ahead->type == TOKEN_SEMICOLON) {
+    matchType(TOKEN_SEMICOLON);
+
     stmts();
+
     return;
   }
 
@@ -178,48 +262,77 @@ void stmt() {
   // STMT -> return EXPR
   // STMT →  ε
 
-  // look ahead type is id
-  var();
-  match(TOKEN_ASSIGN_OP, "=");
-  expr();
+  preGen("stmt");
 
-  // if (isKeyword("if", 2)
-  bexpr();
-  match(TOKEN_KEYWORD, "then");
-  stmts();
-  stmtc();
+  if (look_ahead->type == TOKEN_ID) {
+    var();
 
-  // match(TOKEN_KEYWORD, "while")
-  // Todo: create labels for loop
-  bexpr();
-  match(TOKEN_KEYWORD, "do");
-  stmts();
-  match(TOKEN_KEYWORD, "od");
+    matchType(TOKEN_ASSIGN_OP);
 
-  // match(TOKEN_KEYWORD, "print")
-  expr();
+    expr();
 
-  // match(TOKEN_KEYWORD, "return")
-  expr();
+  } else if (isKeyword("if", 2)) {
+    matchKeyword("if");
 
-  return;
+    bexpr();
+
+    matchKeyword("then");
+
+    stmts();
+
+    stmtc();
+
+  } else if (isKeyword("while", 5)) {
+    matchKeyword("while");
+
+    bexpr();
+
+    matchKeyword("do");
+
+    stmts();
+
+    matchKeyword("od");
+
+  } else if (isKeyword("print", 5)) {
+    matchKeyword("print");
+
+    expr();
+
+  } else if (isKeyword("return", 6)) {
+    matchKeyword("return");
+
+    expr();
+
+  } else {
+    return;
+  }
 }
 void stmtc() {
   // STMTC → fi
   // STMTC → else STMTS fi
 
-  // if look ahead is fi
-  match(TOKEN_KEYWORD, "fi");
-  return;
+   preGen("stmtc");
 
-  // if look ahead is else
-  match(TOKEN_KEYWORD, "else");
-  stmts();
-  match(TOKEN_KEYWORD, "fi");
+  if (isKeyword("fi", 2)) {
+    matchKeyword("fi");
+    return;
+  }
+
+  if (isKeyword("else", 4)) {
+    matchKeyword("else");
+
+    stmts();
+
+    matchKeyword("fi");
+
+    return;
+  }
 }
 
 void expr() {
   // EXPR → TERM EXPRC
+  preGen("expr");
+
   term();
   exprc();
 }
@@ -229,9 +342,13 @@ void exprc() {
   // EXPRC → - TERM EXPRC
   // EXPRC → ε
 
+  preGen("exprc");
+
   if (look_ahead->type == TOKEN_ADD || look_ahead->type == TOKEN_SUB) {
-    match(look_ahead->type, look_ahead->lexeme);
+    matchType(look_ahead->type);
+
     term();
+
     exprc();
 
     return;
@@ -241,7 +358,10 @@ void exprc() {
 }
 void term() {
   // TERM → FACTOR TERMC
+  preGen("term");
+
   factor();
+
   termc();
 }
 
@@ -251,10 +371,14 @@ void termc() {
   // TERMC → % FACTOR TERMC
   // TERMC → ε
 
+  preGen("termc");
+
   if (look_ahead->type == TOKEN_MUL || look_ahead->type == TOKEN_DIV ||
       look_ahead->type == TOKEN_MOD) {
-    match(look_ahead->type, look_ahead->lexeme);
+    matchType(look_ahead->type);
+
     factor();
+
     termc();
 
     return;
@@ -268,23 +392,28 @@ void factor() {
   // FACTOR → NUMBER
   // FACTOR → (EXPR)
 
+  preGen("factor");
+
   if (look_ahead->type == TOKEN_ID) {
-    // match(TOKEN_ID, factorId);
+    matchType(TOKEN_ID);
+
     factorc();
 
     return;
   }
 
   if (isNumber(look_ahead->type)) {
-    match(look_ahead->type, look_ahead->lexeme);
+    matchType(look_ahead->type);
 
     return;
   }
 
   if (look_ahead->type == TOKEN_LEFT_PAREN) {
-    match(TOKEN_LEFT_PAREN, "(");
+    matchType(TOKEN_LEFT_PAREN);
+
     expr();
-    match(TOKEN_RIGHT_PAREN, ")");
+
+    matchType(TOKEN_RIGHT_PAREN);
 
     return;
   }
@@ -294,10 +423,14 @@ void factorc() {
   // FACTORC → VARC
   // FACTORC → ( EXPRS )
 
+  preGen("factorc");
+
   if (look_ahead->type == TOKEN_LEFT_PAREN) {
-    match(TOKEN_LEFT_PAREN, "(");
+    matchType(TOKEN_LEFT_PAREN);
+
     exprs();
-    match(TOKEN_RIGHT_PAREN, ")");
+
+    matchType(TOKEN_RIGHT_PAREN);
 
     return;
   }
@@ -309,10 +442,13 @@ void exprs() {
   // EXPRS → EXPR EXPRSC
   // EXPRS → ε
 
+  preGen("exprs");
+
   if (look_ahead->type == TOKEN_ID || look_ahead->type == TOKEN_INT ||
       look_ahead->type == TOKEN_DOUBLE ||
       look_ahead->type == TOKEN_LEFT_PAREN) {
     expr();
+
     exprsc();
 
     return;
@@ -325,8 +461,11 @@ void exprsc() {
   // EXPRSC → , EXPRS
   // EXPRSC → ε
 
+  preGen("exprsc");
+
   if (look_ahead->type == TOKEN_COMMA) {
-    match(TOKEN_COMMA, ",");
+    matchType(TOKEN_COMMA);
+
     exprs();
 
     return;
@@ -337,8 +476,10 @@ void exprsc() {
 
 void var() {
   // VAR → ID VARC
+  preGen("var");
 
-  // match(TOKEN_ID, lexeme);
+  matchType(TOKEN_ID);
+
   varc();
 }
 
@@ -346,10 +487,14 @@ void varc() {
   // VARC → [ EXPR ]
   // VARC → ε
 
+  preGen("varc");
+
   if (look_ahead->type == TOKEN_LEFT_SQUARE_PAREN) {
-    match(TOKEN_LEFT_SQUARE_PAREN, "[");
+    matchType(TOKEN_LEFT_SQUARE_PAREN);
+
     expr();
-    match(TOKEN_LEFT_SQUARE_PAREN, "]");
+
+    matchType(TOKEN_LEFT_SQUARE_PAREN);
 
     return;
   }
@@ -359,6 +504,8 @@ void varc() {
 
 void bexpr() {
   // BEXPR → BTERM BEXPRC
+  preGen("bexpr");
+
   bterm();
   bexprc();
 }
@@ -366,8 +513,13 @@ void bexpr() {
 void bexprc() {
   // BEXPRC → or BTERM BEXPRC
   // BEXPRC → ε
-  if (match(TOKEN_KEYWORD, "or")) {
+  preGen("bexprc");
+
+  if (isKeyword("or", 2)) {
+    matchKeyword("or");
+
     bterm();
+
     bexprc();
 
     return;
@@ -378,6 +530,8 @@ void bexprc() {
 
 void bterm() {
   // BTERM → BFACTOR BTERMC
+  preGen("bterm");
+
   bfactor();
   btermc();
 }
@@ -385,8 +539,13 @@ void bterm() {
 void btermc() {
   // BTERMC → and BFACTOR BTERMC
   // BTERMC → ε
-  if (match(TOKEN_KEYWORD, "and")) {
+  preGen("btermc");
+
+  if (isKeyword("and", 3)) {
+    matchKeyword("and");
+
     bfactor();
+
     btermc();
 
     return;
@@ -398,27 +557,36 @@ void btermc() {
 void bfactor() {
   // BFACTOR → not bfactor
   // BFACTOR → (expr comp expr)
+  preGen("bfactor");
+
   if (isKeyword("not", 3)) {
-    match(TOKEN_KEYWORD, "not");
+    matchKeyword("not");
+
     bfactor();
 
     return;
   }
 
   if (look_ahead->type == TOKEN_LEFT_PAREN) {
-    match(TOKEN_LEFT_PAREN, "(");
+    matchType(TOKEN_LEFT_PAREN);
+
     expr();
+
     comp();
+
     expr();
-    match(TOKEN_RIGHT_PAREN, ")");
+
+    matchType(TOKEN_RIGHT_PAREN);
 
     return;
   }
 }
 
 void comp() {
+  preGen("comp");
+
   if (isComparison(look_ahead->type)) {
-    match(look_ahead->type, look_ahead->lexeme);
+    matchType(look_ahead->type);
     return;
   }
 }

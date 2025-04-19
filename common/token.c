@@ -1,4 +1,5 @@
 #include "token.h"
+#include "../common/string.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -9,7 +10,9 @@ Token makeToken(TokenType type, char *start, int length, int line) {
   token.start = start;
   token.length = length;
   token.line = line;
-  token.lexeme = getTokenLexeme(&token);
+  token.lexeme = malloc(length + 1);
+  _strncpy(token.lexeme, start, length);
+  token.lexeme[length] = '\0';
 
   return token;
 }
@@ -32,9 +35,7 @@ char *getTokenLexeme(Token *token) {
     return NULL;
   }
 
-  for (int i = 0; i < token->length; i++) {
-    lexeme[i] = token->start[i];
-  }
+  _strncpy(lexeme, token->lexeme, token->length);
 
   lexeme[token->length] = '\0';
 

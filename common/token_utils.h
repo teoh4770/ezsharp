@@ -10,7 +10,6 @@
 extern Token *look_ahead;
 
 // Helper functions
-void addEndToken(Token *tokens, int *tokenCount);
 bool isAtEnd();
 
 // Classification
@@ -24,7 +23,7 @@ Token *previousToken();
 Token *nextToken();
 
 // Matching
-bool matchToken(Token current, Token target);
-bool match(TokenType tokenType, char *lexeme);
+bool matchType(TokenType expectedType);
+bool matchKeyword(const char *expectedKeyword);
 
 #endif // TOKEN_UTILS

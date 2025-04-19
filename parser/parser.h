@@ -17,7 +17,7 @@ void parseError(const char *expectedMessage);
 void handleParseError(const char *message, bool (*isInFollowSet)());
 
 // Parsing functions
-void Parse(Token *tokens);
+void Parse(Token **tokens);
 
 // Follow Set functions
 void syncProg();
